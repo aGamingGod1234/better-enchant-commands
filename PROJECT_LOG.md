@@ -129,3 +129,24 @@
 
 ### Suggested Next Steps
 - Start Minecraft/Fabric and verify only `better-enchant-commands` appears in the loaded mod list.
+## [2026-03-06] - [Fix 1.21.11 NoSuchMethodError on enchantment component reads]
+### What Was Implemented
+- Fixed runtime compatibility for Minecraft 1.21.11 by removing `ItemStack#getOrDefault(DataComponents.ENCHANTMENTS, ...)` usage that caused `NoSuchMethodError`.
+- Switched enchantment component reads to a null-safe pattern using `stack.get(DataComponents.ENCHANTMENTS)` with explicit fallback to `ItemEnchantments.EMPTY`.
+- Rebuilt the mod with `gradlew.bat clean build` and redeployed the jar to local mods.
+
+### Files Modified
+- `src/main/java/com/agaminggod/betterenchantcommands/command/EnchantCommand.java` - replaced `getOrDefault(...)` with null-safe `get(...)` fallback for enchantment component read.
+- `src/main/java/com/agaminggod/betterenchantcommands/verification/InGameStressVerifier.java` - replaced `getOrDefault(...)` with null-safe `get(...)` fallback in level assertion path.
+- `PROJECT_LOG.md` - added this compatibility hotfix entry.
+
+### Assumptions Made (flag these for review)
+- `ItemStack#get(DataComponents.ENCHANTMENTS)` remains stable across 1.21.x and is safer than the removed `getOrDefault` overload on newer runtime versions.
+- Existing write path (`stack.set(DataComponents.ENCHANTMENTS, ...)`) remains binary-compatible for the targeted 1.21.x range.
+
+### Known Issues / Deferred
+- Full manual in-game revalidation after this hotfix is still required on your 1.21.11 client session.
+
+### Suggested Next Steps
+- Launch Fabric 1.21.11, run `/enchant @s minecraft:sharpness 255`, and confirm no crash.
+- If stable, test `/give` enchantment paths and multi-target mixed outcomes again.

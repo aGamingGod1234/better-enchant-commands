@@ -85,7 +85,10 @@ public final class EnchantCommand {
                         continue;
                     }
 
-                    final ItemEnchantments current = stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY);
+                    final ItemEnchantments existingEnchantments = stack.get(DataComponents.ENCHANTMENTS);
+                    final ItemEnchantments current = existingEnchantments == null
+                        ? ItemEnchantments.EMPTY
+                        : existingEnchantments;
                     final ItemEnchantments.Mutable mutable = new ItemEnchantments.Mutable(current);
                     mutable.set(enchantmentHolder, level);
                     stack.set(DataComponents.ENCHANTMENTS, mutable.toImmutable());

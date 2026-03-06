@@ -130,7 +130,8 @@ public final class InGameStressVerifier {
                 return;
             }
 
-            final ItemEnchantments enchantments = stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY);
+            final ItemEnchantments existingEnchantments = stack.get(DataComponents.ENCHANTMENTS);
+            final ItemEnchantments enchantments = existingEnchantments == null ? ItemEnchantments.EMPTY : existingEnchantments;
             final int level = enchantments.getLevel(holder.get());
 
             if (level != expectedLevel) {
