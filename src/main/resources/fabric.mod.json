@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "better-enchant-commands",
+  "version": "${version}",
+  "name": "Better Enchant Commands",
+  "description": "Better Enchant Commands overrides /enchant and /give with 1-255 levels and simple enchantment syntax.",
+  "authors": [
+    "aGamingGod"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.agaminggod.betterenchantcommands.BetterEnchantCommands"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": ">=1.21",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
+
+

@@ -1,0 +1,17 @@
+# Gradle caches and build output
+.gradle/
+build/
+out/
+
+# Local run-server data
+run/
+eula.txt
+
+# Logs and crash dumps
+*.log
+hs_err_pid*
+replay_pid*
+
+# OS/editor noise
+Thumbs.db
+.DS_Store
