@@ -1,6 +1,7 @@
 package com.agaminggod.betterenchantcommands.command;
 
 import com.agaminggod.betterenchantcommands.BetterEnchantCommands;
+import com.agaminggod.betterenchantcommands.compat.MinecraftCompatibility;
 import com.agaminggod.betterenchantcommands.util.EnchantmentParser;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -44,7 +45,7 @@ public final class EnchantCommand {
     ) {
         dispatcher.register(
             Commands.literal(COMMAND_NAME)
-                .requires(source -> source.hasPermission(REQUIRED_PERMISSION_LEVEL))
+                .requires(source -> MinecraftCompatibility.hasPermissionLevel(source, REQUIRED_PERMISSION_LEVEL))
                 .then(Commands.argument(TARGETS_ARGUMENT, EntityArgument.players())
                     .then(Commands.argument(ENCHANTMENT_ARGUMENT, ResourceArgument.resource(buildContext, Registries.ENCHANTMENT))
                         .executes(context -> execute(context, DEFAULT_LEVEL))
@@ -71,7 +72,7 @@ public final class EnchantCommand {
             final Collection<ServerPlayer> targets = EntityArgument.getPlayers(context, TARGETS_ARGUMENT);
             final Holder.Reference<Enchantment> enchantmentHolder = ResourceArgument.getEnchantment(context, ENCHANTMENT_ARGUMENT);
             final String enchantmentId = enchantmentHolder.unwrapKey()
-                .map(key -> key.location().toString())
+                .map(key -> key.identifier().toString())
                 .orElse("unknown");
 
             int successfulTargets = 0;
@@ -85,10 +86,11 @@ public final class EnchantCommand {
                         continue;
                     }
 
-                    final ItemEnchantments existingEnchantments = stack.get(DataComponents.ENCHANTMENTS);
-                    final ItemEnchantments current = existingEnchantments == null
-                        ? ItemEnchantments.EMPTY
-                        : existingEnchantments;
+                    final ItemEnchantments current = MinecraftCompatibility.getComponentOrDefault(
+                        stack,
+                        DataComponents.ENCHANTMENTS,
+                        ItemEnchantments.EMPTY
+                    );
                     final ItemEnchantments.Mutable mutable = new ItemEnchantments.Mutable(current);
                     mutable.set(enchantmentHolder, level);
                     stack.set(DataComponents.ENCHANTMENTS, mutable.toImmutable());

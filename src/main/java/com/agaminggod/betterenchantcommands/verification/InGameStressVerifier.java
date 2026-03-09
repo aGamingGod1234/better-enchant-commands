@@ -1,9 +1,9 @@
 package com.agaminggod.betterenchantcommands.verification;
 
 import com.agaminggod.betterenchantcommands.BetterEnchantCommands;
+import com.agaminggod.betterenchantcommands.compat.MinecraftCompatibility;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import java.util.Optional;
 import java.util.UUID;
 import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.minecraft.commands.CommandSourceStack;
@@ -11,8 +11,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
@@ -42,7 +41,13 @@ public final class InGameStressVerifier {
         try {
             final ServerLevel level = server.overworld();
             final FakePlayer fakePlayer = FakePlayer.get(level, new GameProfile(UUID.randomUUID(), FAKE_PLAYER_NAME));
-            final CommandSourceStack source = fakePlayer.createCommandSourceStack().withPermission(4).withSuppressedOutput();
+            final CommandSourceStack source = MinecraftCompatibility.withPermissionLevel(
+                server.createCommandSourceStack()
+                    .withEntity(fakePlayer)
+                    .withPosition(fakePlayer.position()),
+                2
+            )
+                .withSuppressedOutput();
 
             // Ensure player has an item for enchant tests.
             fakePlayer.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_SWORD));
@@ -119,20 +124,22 @@ public final class InGameStressVerifier {
         final String label
     ) {
         try {
-            final Registry<Enchantment> registry = server.registryAccess().registryOrThrow(Registries.ENCHANTMENT);
-            final ResourceLocation id = ResourceLocation.parse(SHARPNESS_ID);
-            final ResourceKey<Enchantment> key = ResourceKey.create(Registries.ENCHANTMENT, id);
-            final Optional<Holder.Reference<Enchantment>> holder = registry.getHolder(key);
+            final Registry<Enchantment> registry = server.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+            final Identifier id = Identifier.parse(SHARPNESS_ID);
+            final Holder<Enchantment> holder = MinecraftCompatibility.findRegistryHolderById(registry, id);
 
-            if (holder.isEmpty()) {
+            if (holder == null) {
                 BetterEnchantCommands.LOGGER.error("{}{}: sharpness holder not found", FAIL_PREFIX, label);
                 counter.fail();
                 return;
             }
 
-            final ItemEnchantments existingEnchantments = stack.get(DataComponents.ENCHANTMENTS);
-            final ItemEnchantments enchantments = existingEnchantments == null ? ItemEnchantments.EMPTY : existingEnchantments;
-            final int level = enchantments.getLevel(holder.get());
+            final ItemEnchantments enchantments = MinecraftCompatibility.getComponentOrDefault(
+                stack,
+                DataComponents.ENCHANTMENTS,
+                ItemEnchantments.EMPTY
+            );
+            final int level = enchantments.getLevel(holder);
 
             if (level != expectedLevel) {
                 BetterEnchantCommands.LOGGER.error("{}{}: expected level {}, got {}", FAIL_PREFIX, label, expectedLevel, level);

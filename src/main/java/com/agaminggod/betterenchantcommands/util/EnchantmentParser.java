@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public final class EnchantmentParser {
     public static final int MIN_LEVEL = 1;
@@ -60,9 +60,9 @@ public final class EnchantmentParser {
                     + MIN_LEVEL + " and " + MAX_LEVEL + ".");
             }
 
-            final ResourceLocation resourceLocation;
+            final Identifier resourceLocation;
             try {
-                resourceLocation = ResourceLocation.parse(parsedToken.namespace() + PART_SEPARATOR + parsedToken.path());
+                resourceLocation = Identifier.parse(parsedToken.namespace() + PART_SEPARATOR + parsedToken.path());
             } catch (Exception exception) {
                 return ParseResult.failure("Invalid enchantment id \"" + parsedToken.namespace() + PART_SEPARATOR + parsedToken.path()
                     + "\". Expected valid namespaced id like minecraft:sharpness.");
@@ -103,7 +103,7 @@ public final class EnchantmentParser {
             + "\". Expected <id>:<level> or <namespace>:<id>:<level>.");
     }
 
-    public record ParsedEnchantment(ResourceLocation id, int level) {
+    public record ParsedEnchantment(Identifier id, int level) {
     }
 
     public static final class ParseResult {

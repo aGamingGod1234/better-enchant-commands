@@ -150,3 +150,125 @@
 ### Suggested Next Steps
 - Launch Fabric 1.21.11, run `/enchant @s minecraft:sharpness 255`, and confirm no crash.
 - If stable, test `/give` enchantment paths and multi-target mixed outcomes again.
+
+## [2026-03-09] - [Retarget mod to Minecraft 1.21.11 and redeploy fixed jar]
+### What Was Implemented
+- Diagnosed the latest crash report at `C:\Users\aGamingGod\AppData\Roaming\.minecraft\crash-reports\crash-2026-03-09_07.08.52-server.txt` and traced the failure to an older `ItemStack` enchantment-read symbol inside `/enchant`.
+- Updated the build target to match the local runtime: Minecraft `1.21.11`, Fabric Loader `0.18.4`, Fabric API `0.141.3+1.21.11`, Loom `1.14.10`, and Gradle `9.2.1`.
+- Updated source compatibility for the current 1.21.11 mapped API:
+- switched resource id handling to `Identifier`
+- switched registry lookups to `lookupOrThrow(...)` and holder reads to `registry.get(...)`
+- switched command permission checks to the new permission-set model
+- switched verifier command-source elevation to `LevelBasedPermissionSet.GAMEMASTER`
+- Restored a stable enchantment component read path using `stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY)` after rebuilding against the correct 1.21.11 mappings.
+- Ran `.\gradlew.bat clean build` successfully.
+- Ran `.\gradlew.bat runServer --args="nogui"` with `-Dbetterenchantcommands.stressTest=true`; the verifier completed `1532` checks with `0` failures.
+- Replaced the installed local mod jar at `C:\Users\aGamingGod\AppData\Roaming\.minecraft\mods\better-enchant-commands-1.0.0.jar` with the newly built artifact.
+
+### Files Modified
+- `gradle.properties` - aligned Minecraft, loader, Loom, and Fabric API version pins to the local 1.21.11 runtime.
+- `gradle/wrapper/gradle-wrapper.properties` - updated the Gradle wrapper distribution for the newer Loom toolchain.
+- `src/main/resources/fabric.mod.json` - tightened declared compatibility to the 1.21.11 target and newer loader floor.
+- `src/main/java/com/agaminggod/betterenchantcommands/command/EnchantCommand.java` - updated permission checks, identifier access, and current 1.21.11 enchantment read path.
+- `src/main/java/com/agaminggod/betterenchantcommands/command/GiveCommand.java` - updated permission checks, identifier usage, and registry lookup for 1.21.11.
+- `src/main/java/com/agaminggod/betterenchantcommands/util/EnchantmentParser.java` - switched parsed enchantment ids to the current identifier type.
+- `src/main/java/com/agaminggod/betterenchantcommands/verification/InGameStressVerifier.java` - updated permission setup, identifier usage, registry lookup, and enchantment verification reads for 1.21.11.
+- `PROJECT_LOG.md` - added this runtime retarget/build/deploy log entry.
+
+### Assumptions Made (flag these for review)
+- `Permissions.COMMANDS_GAMEMASTER` is the correct 1.21.11 equivalent of the prior vanilla permission level `2` gate for `/give` and `/enchant`.
+- Restricting `fabric.mod.json` compatibility to `~1.21.11` is preferable to the previous broad `>=1.21` claim because the earlier jar was not binary-compatible across that range.
+- Replacing the existing jar in `C:\Users\aGamingGod\AppData\Roaming\.minecraft\mods` was safe because the user explicitly requested in-place deployment.
+
+### Known Issues / Deferred
+- Manual smoke testing inside the exact client session that produced the original crash was not performed after redeployment in this environment.
+- The mod is now intentionally targeted at `1.21.11`; broader `1.21.x` support would need explicit per-version validation.
+
+### Suggested Next Steps
+- Launch the Fabric client and rerun the exact `/enchant` command that crashed before to confirm the live client no longer reproduces the issue.
+- If you want broader patch-version support again, decide whether to maintain separate jars per Minecraft patch or add a compatibility test matrix for each supported runtime.
+
+## [2026-03-09] - [Write future-session handoff for 1.21.x single-jar compatibility work]
+### What Was Implemented
+- Created `FUTURE_SESSION_HANDOFF.md` to capture the exact state of the in-progress `1.21.1` through `1.21.11` single-jar compatibility effort.
+- Documented what is already implemented, what was verified, which intermediary symbols were checked, and what still needs runtime matrix validation.
+- Recorded that the external Fabric server harness can load the built mod jar successfully and only still needs `eula.txt` and `server.properties` in the temporary run directory to continue the matrix run.
+
+### Files Modified
+- `FUTURE_SESSION_HANDOFF.md` - added full handoff notes for the next GPT-5.4 session.
+- `PROJECT_LOG.md` - added this handoff entry.
+
+### Assumptions Made (flag these for review)
+- A dedicated handoff markdown file is the fastest and most useful format for continuing this compatibility task in a future session.
+- The existing dirty working tree reflects intentional in-progress compatibility edits rather than unrelated user work.
+
+### Known Issues / Deferred
+- Cross-version runtime stress testing is still incomplete.
+- `fabric.mod.json` compatibility metadata is not yet finalized for the full `1.21.1` to `1.21.11` range.
+
+### Suggested Next Steps
+- Resume from `FUTURE_SESSION_HANDOFF.md` and finish the external-harness runtime matrix before widening release metadata or redeploying the jar.
+
+## [2026-03-10] - [Run first external runtime-matrix tuple and stop on verifier failure]
+### What Was Implemented
+- Treated `FUTURE_SESSION_HANDOFF.md` and this file as the authoritative records for the single-jar compatibility effort.
+- Reused the existing built artifact `build/libs/better-enchant-commands-1.0.0.jar` without rebuilding it.
+- Created a disposable external Gradle/Loom harness for the first required tuple at:
+- `C:\Users\aGamingGod\AppData\Local\Temp\better-enchant-commands-matrix\1.21.11-0.18.4-0.141.3+1.21.11`
+- Mirrored the working project wrapper/build layout in that harness and launched it with:
+- `JAVA_TOOL_OPTIONS=-Dbetterenchantcommands.stressTest=true`
+- `.\gradlew.bat runServer --args="nogui"`
+- Pre-seeded the harness `run` directory with the repo's `run/eula.txt` and `run/server.properties`, changing only the world name and port for isolation.
+- Confirmed the external harness loaded:
+- `better-enchant-commands 1.0.0`
+- `fabric-loader 0.18.4`
+- `fabric-api 0.141.3+1.21.11`
+- `minecraft 1.21.11`
+- Stopped the matrix immediately after the first required tuple failed, per plan.
+- Preserved the failing harness log at:
+- `C:\Users\aGamingGod\AppData\Local\Temp\better-enchant-commands-matrix\1.21.11-0.18.4-0.141.3+1.21.11\probe-1.21.11.log`
+
+### Files Modified
+- `FUTURE_SESSION_HANDOFF.md` - updated the handoff with the first real external matrix result and the new blocker.
+- `PROJECT_LOG.md` - added this matrix execution outcome entry.
+
+### Assumptions Made (flag these for review)
+- Using the already-built jar in `build/libs` was the correct interpretation of the plan's "do not rebuild before validation" requirement.
+- Loading the production jar through the harness `run/mods` directory is representative enough for external runtime validation because Fabric Loader detected and initialized the mod successfully.
+- Stopping after the first failed required tuple, without touching code or metadata, was the intended plan behavior.
+
+### Known Issues / Deferred
+- The first required tuple failed before any real command stress cases executed because `MinecraftCompatibility.withPermissionLevel(...)` hit:
+- `IllegalStateException: Failed compatibility invocation: net.minecraft.commands.arguments.EntityAnchorArgument$Anchor#valueof`
+- The remaining required tuples were intentionally not run after this failure.
+- `fabric.mod.json` compatibility metadata was intentionally left unchanged because the matrix did not pass.
+- The local mods jar was intentionally not replaced because the plan only allows redeploy after a full required-matrix pass.
+
+### Suggested Next Steps
+- Fix the permission-elevation compatibility selection in `src/main/java/com/agaminggod/betterenchantcommands/compat/MinecraftCompatibility.java`.
+- Rebuild the candidate jar once that fix is in place.
+- Rerun the external matrix beginning again with `1.21.11`, then continue to `1.21.4` and `1.21.1` only if the prior tuple passes.
+
+## [2026-03-10] - [Build current compatibility branch and replace local mods jar]
+### What Was Implemented
+- Rebuilt the current working tree with `.\gradlew.bat clean build`.
+- Produced a fresh `build/libs/better-enchant-commands-1.0.0.jar`.
+- Replaced the installed local Fabric mods jar at:
+- `C:\Users\aGamingGod\AppData\Roaming\.minecraft\mods\better-enchant-commands-1.0.0.jar`
+- Recorded that this redeploy happened after the external matrix had already exposed a known runtime compatibility blocker.
+
+### Files Modified
+- `PROJECT_LOG.md` - added this rebuild and local redeploy entry.
+- `FUTURE_SESSION_HANDOFF.md` - noted that the local `.minecraft/mods` jar was manually refreshed despite the unresolved matrix blocker.
+
+### Assumptions Made (flag these for review)
+- The user intended to override the earlier matrix stop condition and still wanted the current in-progress branch deployed locally.
+- Replacing the existing jar in `C:\Users\aGamingGod\AppData\Roaming\.minecraft\mods` was safe because the request was explicit.
+
+### Known Issues / Deferred
+- The deployed jar still comes from a branch with a known external-runtime failure in `MinecraftCompatibility.withPermissionLevel(...)`.
+- The cross-version matrix is still incomplete, and `fabric.mod.json` compatibility metadata remains intentionally unchanged.
+
+### Suggested Next Steps
+- Launch the local Fabric instance and verify whether the refreshed jar behaves acceptably for the specific scenario you want to test.
+- If the permission-elevation failure also reproduces in your target runtime, fix `src/main/java/com/agaminggod/betterenchantcommands/compat/MinecraftCompatibility.java` and rerun the matrix before treating the build as release-ready.

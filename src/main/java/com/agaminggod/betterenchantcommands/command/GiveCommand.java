@@ -1,6 +1,7 @@
 package com.agaminggod.betterenchantcommands.command;
 
 import com.agaminggod.betterenchantcommands.BetterEnchantCommands;
+import com.agaminggod.betterenchantcommands.compat.MinecraftCompatibility;
 import com.agaminggod.betterenchantcommands.util.EnchantmentParser;
 import com.agaminggod.betterenchantcommands.util.EnchantmentParser.ParseResult;
 import com.agaminggod.betterenchantcommands.util.EnchantmentParser.ParsedEnchantment;
@@ -30,8 +31,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -60,7 +60,7 @@ public final class GiveCommand {
     ) {
         dispatcher.register(
             Commands.literal(COMMAND_NAME)
-                .requires(source -> source.hasPermission(REQUIRED_PERMISSION_LEVEL))
+                .requires(source -> MinecraftCompatibility.hasPermissionLevel(source, REQUIRED_PERMISSION_LEVEL))
                 .then(Commands.argument(TARGETS_ARGUMENT, EntityArgument.players())
                     .then(Commands.argument(ITEM_ARGUMENT, ItemArgument.item(buildContext))
                         .executes(context -> execute(context, DEFAULT_COUNT, null))
@@ -164,20 +164,18 @@ public final class GiveCommand {
             return null;
         }
 
-        final Registry<Enchantment> enchantmentRegistry = source.getServer().registryAccess().registryOrThrow(Registries.ENCHANTMENT);
+        final Registry<Enchantment> enchantmentRegistry = source.getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
         final Map<Holder<Enchantment>, Integer> resolved = new LinkedHashMap<>();
         final List<String> unknownEnchantments = new ArrayList<>();
 
         for (ParsedEnchantment parsed : parseResult.enchantments()) {
-            final ResourceKey<Enchantment> key = ResourceKey.create(Registries.ENCHANTMENT, parsed.id());
-            final Optional<Holder.Reference<Enchantment>> holder = enchantmentRegistry.getHolder(key);
-
-            if (holder.isEmpty()) {
+            final Holder<Enchantment> holder = MinecraftCompatibility.findRegistryHolderById(enchantmentRegistry, parsed.id());
+            if (holder == null) {
                 unknownEnchantments.add(parsed.id().toString());
                 continue;
             }
 
-            resolved.put(holder.get(), parsed.level());
+            resolved.put(holder, parsed.level());
         }
 
         if (!unknownEnchantments.isEmpty()) {
@@ -233,7 +231,7 @@ public final class GiveCommand {
                 return builder.buildFuture();
             }
 
-            final Registry<Enchantment> registry = source.getServer().registryAccess().registryOrThrow(Registries.ENCHANTMENT);
+            final Registry<Enchantment> registry = source.getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
             final String input = builder.getRemaining();
             final int commaIndex = input.lastIndexOf(',');
             final String prefix = commaIndex >= 0
@@ -243,7 +241,7 @@ public final class GiveCommand {
                 ? input.substring(commaIndex + 1).trim().toLowerCase(Locale.ROOT)
                 : input.substring(EnchantmentParser.ENCHANTMENTS_PREFIX.length()).trim().toLowerCase(Locale.ROOT);
 
-            for (ResourceLocation id : registry.keySet()) {
+            for (Identifier id : registry.keySet()) {
                 final String fullId = id.toString();
                 final String shortId = id.getNamespace().equals("minecraft")
                     ? id.getPath()
