@@ -272,3 +272,28 @@
 ### Suggested Next Steps
 - Launch the local Fabric instance and verify whether the refreshed jar behaves acceptably for the specific scenario you want to test.
 - If the permission-elevation failure also reproduces in your target runtime, fix `src/main/java/com/agaminggod/betterenchantcommands/compat/MinecraftCompatibility.java` and rerun the matrix before treating the build as release-ready.
+
+## [2026-03-10] - [Rewrite README for GitHub user readability]
+### What Was Implemented
+- Rewrote the README to be user-first instead of developer-first.
+- Added a plain-language overview of what the mod changes and why someone would use it.
+- Added clearer command documentation for `/enchant` and `/give`, including exact syntax and copy-paste examples.
+- Added explicit installation guidance for server and singleplayer usage.
+- Added a short requirements section and moved build/stress-verification steps into a smaller developer-focused section.
+
+### Files Modified
+- `README.md` - reorganized and rewrote the document for clearer GitHub presentation and easier end-user understanding.
+- `PROJECT_LOG.md` - added this documentation update entry.
+
+### Assumptions Made (flag these for review)
+- The primary README audience is GitHub visitors who want to understand what the mod does and how to use it quickly.
+- Presenting the mod as server-side only, while also noting that it works in singleplayer, is the clearest wording for end users.
+- Keeping developer build instructions in the README is still useful, as long as they are moved below the user-facing sections.
+
+### Known Issues / Deferred
+- The README now documents the currently implemented behavior, but it does not include release/download badges or platform-specific publishing links.
+- Compatibility messaging remains tied to the current project metadata and has not been widened beyond the versions already declared in the project files.
+
+### Suggested Next Steps
+- Add GitHub release links or Modrinth/CurseForge links once distribution pages exist.
+- Consider adding a short FAQ section if users commonly ask about permissions, client installation, or enchantment syntax.
