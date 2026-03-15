@@ -167,33 +167,33 @@ public final class MinecraftCompatibility {
     }
 
     private static ComponentReadAccess resolveComponentReadAccess(final Class<?> stackClass) {
-        for (Method candidate : stackClass.getMethods()) {
-            if (Modifier.isStatic(candidate.getModifiers())
-                || candidate.getParameterCount() != 2
-                || candidate.getReturnType() == void.class
-                || candidate.getParameterTypes()[0].isPrimitive()
-                || candidate.getParameterTypes()[1].isPrimitive()) {
-                continue;
-            }
-
-            candidate.setAccessible(true);
-            return new ComponentReadAccess(candidate, true);
-        }
+        final List<Method> twoArgMethods = new ArrayList<>();
+        final List<Method> oneArgMethods = new ArrayList<>();
 
         for (Method candidate : stackClass.getMethods()) {
             if (Modifier.isStatic(candidate.getModifiers())
-                || candidate.getParameterCount() != 1
-                || candidate.getReturnType() == void.class
-                || candidate.getReturnType() == boolean.class
-                || candidate.getParameterTypes()[0].isPrimitive()) {
+                || candidate.getReturnType() == void.class) {
                 continue;
             }
 
-            candidate.setAccessible(true);
-            return new ComponentReadAccess(candidate, false);
+            if (candidate.getParameterCount() == 2
+                && !candidate.getParameterTypes()[0].isPrimitive()
+                && !candidate.getParameterTypes()[1].isPrimitive()) {
+                candidate.setAccessible(true);
+                twoArgMethods.add(candidate);
+            } else if (candidate.getParameterCount() == 1
+                && candidate.getReturnType() != boolean.class
+                && !candidate.getParameterTypes()[0].isPrimitive()) {
+                candidate.setAccessible(true);
+                oneArgMethods.add(candidate);
+            }
         }
 
-        throw new IllegalStateException("Unsupported component read model for item stack class " + stackClass.getName());
+        if (twoArgMethods.isEmpty() && oneArgMethods.isEmpty()) {
+            throw new IllegalStateException("Unsupported component read model for item stack class " + stackClass.getName());
+        }
+
+        return new ComponentReadAccess(twoArgMethods, oneArgMethods);
     }
 
     private static RegistryLookupAccess resolveRegistryLookupAccess(final Class<?> registryClass) {
@@ -310,14 +310,23 @@ public final class MinecraftCompatibility {
         }
     }
 
-    private record ComponentReadAccess(Method method, boolean acceptsDefaultValue) {
+    private record ComponentReadAccess(List<Method> twoArgMethods, List<Method> oneArgMethods) {
         Object read(final ItemStack stack, final Object componentType, final Object fallbackValue) throws ReflectiveOperationException {
-            if (acceptsDefaultValue) {
-                return invoke(method, stack, componentType, fallbackValue);
+            for (Method method : twoArgMethods) {
+                if (method.getParameterTypes()[0].isInstance(componentType)
+                    && method.getParameterTypes()[1].isInstance(fallbackValue)) {
+                    return invoke(method, stack, componentType, fallbackValue);
+                }
             }
 
-            final Object resolved = invoke(method, stack, componentType);
-            return resolved == null ? fallbackValue : resolved;
+            for (Method method : oneArgMethods) {
+                if (method.getParameterTypes()[0].isInstance(componentType)) {
+                    final Object resolved = invoke(method, stack, componentType);
+                    return resolved == null ? fallbackValue : resolved;
+                }
+            }
+
+            throw new IllegalStateException("No compatible component read method found for item stack class " + stack.getClass().getName());
         }
     }
 
