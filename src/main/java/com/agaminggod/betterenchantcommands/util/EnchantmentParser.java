@@ -13,6 +13,8 @@ public final class EnchantmentParser {
     private static final String DEFAULT_NAMESPACE = "minecraft";
     private static final String ENCHANTMENT_SEPARATOR = ",";
     private static final String PART_SEPARATOR = ":";
+    private static final int MAX_INPUT_LENGTH = 2048;
+    private static final int MAX_ENCHANTMENT_ENTRIES = 50;
 
     private EnchantmentParser() {
     }
@@ -20,6 +22,10 @@ public final class EnchantmentParser {
     public static ParseResult parse(final String rawInput) {
         if (rawInput == null || rawInput.isBlank()) {
             return ParseResult.failure("Enchantments string cannot be empty. Expected enchantments:<id>:<level>,...");
+        }
+
+        if (rawInput.length() > MAX_INPUT_LENGTH) {
+            return ParseResult.failure("Enchantments string is too long (max " + MAX_INPUT_LENGTH + " characters).");
         }
 
         final String loweredInput = rawInput.toLowerCase(Locale.ROOT);
@@ -33,6 +39,10 @@ public final class EnchantmentParser {
         }
 
         final String[] rawEntries = payload.split(ENCHANTMENT_SEPARATOR);
+        if (rawEntries.length > MAX_ENCHANTMENT_ENTRIES) {
+            return ParseResult.failure("Too many enchantments (max " + MAX_ENCHANTMENT_ENTRIES + ").");
+        }
+
         final List<ParsedEnchantment> parsedEnchantments = new ArrayList<>(rawEntries.length);
 
         for (final String rawEntry : rawEntries) {

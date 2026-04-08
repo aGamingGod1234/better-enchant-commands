@@ -264,9 +264,15 @@ public final class MinecraftCompatibility {
 
     private static List<Class<?>> collectTypeHierarchy(final Class<?> root) {
         final List<Class<?>> hierarchy = new ArrayList<>();
-        hierarchy.add(root);
-        for (Class<?> candidate : root.getInterfaces()) {
-            hierarchy.add(candidate);
+        Class<?> current = root;
+        while (current != null && current != Object.class) {
+            hierarchy.add(current);
+            for (Class<?> iface : current.getInterfaces()) {
+                if (!hierarchy.contains(iface)) {
+                    hierarchy.add(iface);
+                }
+            }
+            current = current.getSuperclass();
         }
         return hierarchy;
     }
@@ -383,12 +389,28 @@ public final class MinecraftCompatibility {
             if (cause instanceof ReflectiveOperationException reflectiveOperationException) {
                 throw reflectiveOperationException;
             }
+            if (cause instanceof RuntimeException runtimeException) {
+                throw new IllegalStateException(buildInvocationError(method) + ": " + runtimeException.getMessage(), runtimeException);
+            }
 
             throw new IllegalStateException(buildInvocationError(method), cause);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalStateException(buildInvocationError(method) + " - argument mismatch", exception);
         }
     }
 
     private static String buildInvocationError(final Method method) {
-        return "Failed compatibility invocation: " + method.getDeclaringClass().getName() + "#" + method.getName().toLowerCase(Locale.ROOT);
+        final StringBuilder sb = new StringBuilder("Failed compatibility invocation: ");
+        sb.append(method.getDeclaringClass().getName()).append('#').append(method.getName().toLowerCase(Locale.ROOT));
+        sb.append('(');
+        final Class<?>[] paramTypes = method.getParameterTypes();
+        for (int i = 0; i < paramTypes.length; i++) {
+            if (i > 0) {
+                sb.append(", ");
+            }
+            sb.append(paramTypes[i].getSimpleName());
+        }
+        sb.append(')');
+        return sb.toString();
     }
 }

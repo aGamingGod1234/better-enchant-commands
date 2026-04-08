@@ -9,6 +9,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import java.util.ArrayList;
@@ -17,7 +18,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandBuildContext;
@@ -47,6 +47,7 @@ public final class GiveCommand {
     private static final int MIN_COUNT = 1;
     private static final int MAX_COUNT = 6400;
     private static final int REQUIRED_PERMISSION_LEVEL = 2;
+    private static final int MAX_DISPLAYED_FAILURES = 10;
 
     private static final SuggestionProvider<CommandSourceStack> ENCHANTMENT_STRING_SUGGESTIONS =
         (context, builder) -> buildEnchantmentStringSuggestions(context.getSource(), builder);
@@ -128,24 +129,29 @@ public final class GiveCommand {
                     successfulTargets++;
                     final String message = buildSuccessMessage(target, stack, count, resolvedEnchantments);
                     source.sendSuccess(() -> Component.literal(message), true);
-                } catch (Exception exception) {
+                } catch (IllegalStateException exception) {
+                    failedTargets.add(target.getScoreboardName() + " (compatibility error)");
+                    BetterEnchantCommands.LOGGER.error("Compatibility error giving item to {}", target.getScoreboardName(), exception);
+                } catch (RuntimeException exception) {
                     failedTargets.add(target.getScoreboardName() + " (internal error)");
-                    BetterEnchantCommands.LOGGER.error("Failed to give item to {}", target.getScoreboardName(), exception);
+                    BetterEnchantCommands.LOGGER.error("Failed to give item to {}: {}", target.getScoreboardName(), exception.getMessage());
                 }
             }
 
             if (!failedTargets.isEmpty()) {
-                source.sendFailure(Component.literal("Failed targets: " + String.join(", ", failedTargets))
-                    .withStyle(ChatFormatting.RED));
+                source.sendFailure(Component.literal(formatFailedTargets(failedTargets)).withStyle(ChatFormatting.RED));
             }
 
             return successfulTargets;
-        } catch (Exception exception) {
+        } catch (CommandSyntaxException exception) {
+            source.sendFailure(Component.literal(exception.getMessage()).withStyle(ChatFormatting.RED));
+            return 0;
+        } catch (RuntimeException exception) {
             source.sendFailure(
                 Component.literal("An internal error occurred while running /give. Check server logs.")
                     .withStyle(ChatFormatting.RED)
             );
-            BetterEnchantCommands.LOGGER.error("Unhandled /give error", exception);
+            BetterEnchantCommands.LOGGER.error("Unhandled /give error: {}", exception.getMessage(), exception);
             return 0;
         }
     }
@@ -164,6 +170,11 @@ public final class GiveCommand {
             return null;
         }
 
+        if (source.getServer() == null) {
+            source.sendFailure(Component.literal("Server is unavailable.").withStyle(ChatFormatting.RED));
+            return null;
+        }
+
         final Registry<Enchantment> enchantmentRegistry = source.getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
         final Map<Holder<Enchantment>, Integer> resolved = new LinkedHashMap<>();
         final List<String> unknownEnchantments = new ArrayList<>();
@@ -179,7 +190,7 @@ public final class GiveCommand {
         }
 
         if (!unknownEnchantments.isEmpty()) {
-            source.sendFailure(Component.literal("Unknown enchantment(s): " + String.join(", ", unknownEnchantments))
+            source.sendFailure(Component.literal(formatUnknownEnchantments(unknownEnchantments))
                 .withStyle(ChatFormatting.RED));
             return null;
         }
@@ -215,6 +226,26 @@ public final class GiveCommand {
         }
 
         return baseMessage + " with " + enchantments.size() + " enchantment(s)";
+    }
+
+    private static String formatFailedTargets(final List<String> failedTargets) {
+        if (failedTargets.size() <= MAX_DISPLAYED_FAILURES) {
+            return "Failed targets: " + String.join(", ", failedTargets);
+        }
+
+        final List<String> displayed = failedTargets.subList(0, MAX_DISPLAYED_FAILURES);
+        final int remaining = failedTargets.size() - MAX_DISPLAYED_FAILURES;
+        return "Failed targets: " + String.join(", ", displayed) + " (and " + remaining + " more)";
+    }
+
+    private static String formatUnknownEnchantments(final List<String> unknownEnchantments) {
+        if (unknownEnchantments.size() <= MAX_DISPLAYED_FAILURES) {
+            return "Unknown enchantment(s): " + String.join(", ", unknownEnchantments);
+        }
+
+        final List<String> displayed = unknownEnchantments.subList(0, MAX_DISPLAYED_FAILURES);
+        final int remaining = unknownEnchantments.size() - MAX_DISPLAYED_FAILURES;
+        return "Unknown enchantment(s): " + String.join(", ", displayed) + " (and " + remaining + " more)";
     }
 
     private static CompletableFuture<com.mojang.brigadier.suggestion.Suggestions> buildEnchantmentStringSuggestions(

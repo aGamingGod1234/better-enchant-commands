@@ -6,8 +6,7 @@ import com.agaminggod.betterenchantcommands.util.EnchantmentParser;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.suggestion.SuggestionProvider;
-import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -15,11 +14,9 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.ResourceArgument;
 import net.minecraft.core.Holder;
-import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -35,6 +32,7 @@ public final class EnchantCommand {
     private static final String ENCHANTMENT_ARGUMENT = "enchantment";
     private static final String LEVEL_ARGUMENT = "level";
     private static final int REQUIRED_PERMISSION_LEVEL = 2;
+    private static final int MAX_DISPLAYED_FAILURES = 10;
 
     private EnchantCommand() {
     }
@@ -99,27 +97,41 @@ public final class EnchantCommand {
                     final String successMessage = "Applied " + enchantmentId + " " + level + " to "
                         + stack.getHoverName().getString() + " for " + target.getScoreboardName();
                     source.sendSuccess(() -> Component.literal(successMessage), true);
-                } catch (Exception exception) {
+                } catch (IllegalStateException exception) {
+                    failedTargets.add(target.getScoreboardName() + " (compatibility error)");
+                    BetterEnchantCommands.LOGGER.error("Compatibility error applying enchantment to {}", target.getScoreboardName(), exception);
+                } catch (RuntimeException exception) {
                     failedTargets.add(target.getScoreboardName() + " (internal error)");
-                    BetterEnchantCommands.LOGGER.error("Failed to apply enchantment to {}", target.getScoreboardName(), exception);
+                    BetterEnchantCommands.LOGGER.error("Failed to apply enchantment to {}: {}", target.getScoreboardName(), exception.getMessage());
                 }
             }
 
             if (!failedTargets.isEmpty()) {
-                source.sendFailure(Component.literal(
-                    "Failed targets: " + String.join(", ", failedTargets)
-                ).withStyle(ChatFormatting.RED));
+                source.sendFailure(Component.literal(formatFailedTargets(failedTargets)).withStyle(ChatFormatting.RED));
             }
 
             return successfulTargets;
-        } catch (Exception exception) {
+        } catch (CommandSyntaxException exception) {
+            source.sendFailure(Component.literal(exception.getMessage()).withStyle(ChatFormatting.RED));
+            return 0;
+        } catch (RuntimeException exception) {
             source.sendFailure(
                 Component.literal("An internal error occurred while running /enchant. Check server logs.")
                     .withStyle(ChatFormatting.RED)
             );
-            BetterEnchantCommands.LOGGER.error("Unhandled /enchant error", exception);
+            BetterEnchantCommands.LOGGER.error("Unhandled /enchant error: {}", exception.getMessage(), exception);
             return 0;
         }
+    }
+
+    private static String formatFailedTargets(final List<String> failedTargets) {
+        if (failedTargets.size() <= MAX_DISPLAYED_FAILURES) {
+            return "Failed targets: " + String.join(", ", failedTargets);
+        }
+
+        final List<String> displayed = failedTargets.subList(0, MAX_DISPLAYED_FAILURES);
+        final int remaining = failedTargets.size() - MAX_DISPLAYED_FAILURES;
+        return "Failed targets: " + String.join(", ", displayed) + " (and " + remaining + " more)";
     }
 }
 
