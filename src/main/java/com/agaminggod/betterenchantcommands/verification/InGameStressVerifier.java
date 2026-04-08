@@ -23,6 +23,7 @@ import net.minecraft.world.item.enchantment.ItemEnchantments;
 public final class InGameStressVerifier {
     private static final int STRESS_ITERATIONS = 500;
     private static final int ENCHANT_MIN_LEVEL = 1;
+    private static final int STRESS_LOG_INTERVAL = 100;
     private static final String SHARPNESS_ID = "minecraft:sharpness";
     private static final String FAKE_PLAYER_NAME = "ep_stress_bot";
     private static final String PASS_PREFIX = "[Better Enchant Commands Stress PASS] ";
@@ -96,6 +97,9 @@ public final class InGameStressVerifier {
         final CommandSourceStack source,
         final MinecraftServer server
     ) {
+        final long startTime = System.nanoTime();
+        final int passedBefore = counter.passed;
+
         for (int i = 1; i <= STRESS_ITERATIONS; i++) {
             assertSuccess(counter, source, server, "give @s minecraft:stone 64", "stress plain /give #" + i);
             assertSuccess(counter, source, server,
@@ -107,12 +111,20 @@ public final class InGameStressVerifier {
                 assertFailure(counter, source, server, "give @s minecraft:diamond_sword enchantments:sharpness:999",
                     "stress invalid level /give #" + i);
             }
+
+            if (i % STRESS_LOG_INTERVAL == 0) {
+                BetterEnchantCommands.LOGGER.info("{}Stress progress: {}/{} iterations completed (failures so far: {})",
+                    PASS_PREFIX, i, STRESS_ITERATIONS, counter.failed);
+            }
         }
 
+        final long elapsedMs = (System.nanoTime() - startTime) / 1_000_000;
+        final int stressChecks = counter.passed + counter.failed - passedBefore;
+
         if (counter.failed > 0) {
-            BetterEnchantCommands.LOGGER.error("{}Stress loop cumulative failures={}", FAIL_PREFIX, counter.failed);
+            BetterEnchantCommands.LOGGER.error("{}Stress loop completed in {}ms with failures={}", FAIL_PREFIX, elapsedMs, counter.failed);
         } else {
-            BetterEnchantCommands.LOGGER.info("{}Stress loop passed {} checks", PASS_PREFIX, counter.passed);
+            BetterEnchantCommands.LOGGER.info("{}Stress loop passed {} checks in {}ms", PASS_PREFIX, stressChecks, elapsedMs);
         }
     }
 
