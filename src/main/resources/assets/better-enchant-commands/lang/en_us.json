@@ -1,0 +1,60 @@
+{
+  "better-enchant-commands.error.syntax": "%s",
+  "better-enchant-commands.error.internal": "An internal error occurred. Check server logs.",
+  "better-enchant-commands.error.server_unavailable": "Server is unavailable.",
+  "better-enchant-commands.error.not_a_player": "This subcommand can only be used by a player.",
+  "better-enchant-commands.error.not_holding_item": "You are not holding an item.",
+  "better-enchant-commands.error.incompatible": "You cannot enchant %s with %s",
+  "better-enchant-commands.error.count_out_of_range": "Count must be between %d and %d.",
+  "better-enchant-commands.error.level_out_of_range": "Level must be between %d and %d.",
+  "better-enchant-commands.error.unknown_enchantment": "Unknown enchantment(s): %s",
+  "better-enchant-commands.error.missing_enchantment": "Missing required enchantment: %s",
+  "better-enchant-commands.error.confirmation_required": "This would affect %d targets. Re-run with /enchants confirm %s within 30s.",
+
+  "better-enchant-commands.success.enchant": "Applied %s %d to %s for %s",
+  "better-enchant-commands.success.give": "Gave %d [%s] to %s",
+  "better-enchant-commands.success.give_enchanted": "Gave %d [%s] to %s with %d enchantment(s)",
+  "better-enchant-commands.success.unenchant_all": "Removed all enchantments from %s's %s",
+  "better-enchant-commands.success.unenchant_one": "Removed %s from %s's held item",
+  "better-enchant-commands.success.repair": "Gave %d [%s] to %s (mending applied)",
+
+  "better-enchant-commands.list.empty": "%s has no enchantments.",
+  "better-enchant-commands.list.header": "Enchantments on %s:",
+  "better-enchant-commands.list.entry": "  - %s (level %d)",
+  "better-enchant-commands.list.none_matched": "No enchantments matched \"%s\".",
+  "better-enchant-commands.list.enchantments_header": "Enchantments (%d):",
+  "better-enchant-commands.list.enchantments_entry": "  - %s",
+  "better-enchant-commands.list.enchantments_truncated": "  (%d more — use /enchantlist <filter> to narrow)",
+
+  "better-enchant-commands.info.header": "Enchantment: %s",
+  "better-enchant-commands.info.max_level": "  Vanilla max level: %s",
+  "better-enchant-commands.info.mod_max_level": "  Mod-allowed max level: %d",
+
+  "better-enchant-commands.preset.list_empty": "No presets defined. Use /enchantpreset save <name> to store the held item's enchantments.",
+  "better-enchant-commands.preset.list_header": "Presets (%d):",
+  "better-enchant-commands.preset.list_entry": "  - %s (%d enchantments)",
+  "better-enchant-commands.preset.saved": "Saved preset \"%s\" with %d enchantments.",
+  "better-enchant-commands.preset.deleted": "Deleted preset \"%s\".",
+  "better-enchant-commands.preset.applied": "Applied preset \"%s\" to %d player(s).",
+  "better-enchant-commands.preset.not_found": "Preset \"%s\" does not exist.",
+  "better-enchant-commands.preset.save_failed": "Failed to save preset \"%s\".",
+  "better-enchant-commands.preset.bad_id": "Invalid id in preset: %s",
+  "better-enchant-commands.preset.no_enchantments": "The held item has no enchantments to save.",
+
+  "better-enchant-commands.undo.success": "Undid \"%s\" — restored %d item(s).",
+  "better-enchant-commands.undo.empty": "No operations to undo.",
+
+  "better-enchant-commands.confirm.invalid": "No pending confirmation matches that token (or it has expired).",
+  "better-enchant-commands.confirm.failed": "The confirmed action threw an error: %s",
+
+  "better-enchant-commands.config.allow_all_set": "allow_all_enchantments is now %s",
+  "better-enchant-commands.config.allow_all_status": "allow_all_enchantments is %s",
+
+  "better-enchant-commands.status.header": "Better Enchant Commands status:",
+  "better-enchant-commands.status.allow_all": "  allow_all_enchantments: %s",
+  "better-enchant-commands.status.audit_log": "  audit_log_enabled: %s",
+  "better-enchant-commands.status.undo_size": "  undo_history_size: %d",
+  "better-enchant-commands.status.undo_depth": "  your undo depth: %d",
+  "better-enchant-commands.status.confirm_threshold": "  confirmation_threshold: %d targets",
+  "better-enchant-commands.status.luckperms": "  LuckPerms integration: %s"
+}
