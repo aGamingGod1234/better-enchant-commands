@@ -48,6 +48,7 @@ public final class GiveCommand {
     private static final int MAX_COUNT = 6400;
     private static final int REQUIRED_PERMISSION_LEVEL = 2;
     private static final int MAX_DISPLAYED_FAILURES = 10;
+    private static final int MAX_SUGGESTIONS = 50;
 
     private static final SuggestionProvider<CommandSourceStack> ENCHANTMENT_STRING_SUGGESTIONS =
         (context, builder) -> buildEnchantmentStringSuggestions(context.getSource(), builder);
@@ -262,6 +263,10 @@ public final class GiveCommand {
                 return builder.buildFuture();
             }
 
+            if (source.getServer() == null) {
+                return builder.buildFuture();
+            }
+
             final Registry<Enchantment> registry = source.getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
             final String input = builder.getRemaining();
             final int commaIndex = input.lastIndexOf(',');
@@ -272,18 +277,26 @@ public final class GiveCommand {
                 ? input.substring(commaIndex + 1).trim().toLowerCase(Locale.ROOT)
                 : input.substring(EnchantmentParser.ENCHANTMENTS_PREFIX.length()).trim().toLowerCase(Locale.ROOT);
 
+            int emitted = 0;
             for (Identifier id : registry.keySet()) {
+                if (emitted >= MAX_SUGGESTIONS) {
+                    break;
+                }
+
                 final String fullId = id.toString();
-                final String shortId = id.getNamespace().equals("minecraft")
-                    ? id.getPath()
-                    : fullId;
+                final boolean isMinecraft = id.getNamespace().equals("minecraft");
+                final String shortId = isMinecraft ? id.getPath() : fullId;
 
                 if (token.isEmpty() || fullId.startsWith(token)) {
                     builder.suggest(prefix + fullId + ":" + EnchantmentParser.MIN_LEVEL);
+                    emitted++;
                 }
 
-                if (!shortId.equals(fullId) && (token.isEmpty() || shortId.startsWith(token))) {
+                if (emitted < MAX_SUGGESTIONS
+                    && !shortId.equals(fullId)
+                    && (token.isEmpty() || shortId.startsWith(token))) {
                     builder.suggest(prefix + shortId + ":" + EnchantmentParser.MIN_LEVEL);
+                    emitted++;
                 }
             }
         } catch (Exception exception) {

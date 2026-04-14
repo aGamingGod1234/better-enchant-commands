@@ -2,8 +2,10 @@ package com.agaminggod.betterenchantcommands.util;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import net.minecraft.resources.Identifier;
 
 public final class EnchantmentParser {
@@ -28,8 +30,7 @@ public final class EnchantmentParser {
             return ParseResult.failure("Enchantments string is too long (max " + MAX_INPUT_LENGTH + " characters).");
         }
 
-        final String loweredInput = rawInput.toLowerCase(Locale.ROOT);
-        if (!loweredInput.startsWith(ENCHANTMENTS_PREFIX)) {
+        if (!rawInput.regionMatches(true, 0, ENCHANTMENTS_PREFIX, 0, ENCHANTMENTS_PREFIX.length())) {
             return ParseResult.failure("Enchantments must start with \"enchantments:\"");
         }
 
@@ -44,6 +45,7 @@ public final class EnchantmentParser {
         }
 
         final List<ParsedEnchantment> parsedEnchantments = new ArrayList<>(rawEntries.length);
+        final Set<Identifier> seenIds = new HashSet<>(rawEntries.length);
 
         for (final String rawEntry : rawEntries) {
             final String token = rawEntry.trim();
@@ -76,6 +78,11 @@ public final class EnchantmentParser {
             } catch (Exception exception) {
                 return ParseResult.failure("Invalid enchantment id \"" + parsedToken.namespace() + PART_SEPARATOR + parsedToken.path()
                     + "\". Expected valid namespaced id like minecraft:sharpness.");
+            }
+
+            if (!seenIds.add(resourceLocation)) {
+                return ParseResult.failure("Duplicate enchantment \"" + resourceLocation + "\" in input. "
+                    + "Each enchantment id may only appear once.");
             }
 
             parsedEnchantments.add(new ParsedEnchantment(resourceLocation, level));
