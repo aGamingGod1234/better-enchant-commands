@@ -2,8 +2,14 @@
 
 ## Goal
 - Deliver one production jar that works on Fabric for Minecraft `1.21.1` through `1.21.11`.
-- Keep `/enchant` and `/give` behavior unchanged.
+- Keep `/enchant` and `/give` **core** behavior unchanged (same syntax, same level range, same drop-on-full fallback).
+- Offer an expanded command surface (`/unenchant`, `/enchantinfo`, `/enchantlist`, `/enchantpreset`, `/repair`, `/enchants`) that can be disabled individually via permission nodes.
 - Survive differing Fabric API patch versions without hard-pinning to one runtime.
+
+## 2026-04-14 Change Set
+- Hot-path perf + reliability pass (see `PROJECT_LOG.md` entry dated 2026-04-14).
+- Added config, undo, audit, confirmation, presets, LuckPerms soft-dep, and i18n.
+- Verify the new code compiles against the production mapping set before shipping — this session only performed structural edits; the CI loom plugin fetch failed in the sandbox so no final gradle build was run here.
 
 ## Current Repo State
 - The repo already contains an initial cross-version compatibility pass.

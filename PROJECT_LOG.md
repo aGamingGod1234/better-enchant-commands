@@ -1,3 +1,45 @@
+## [2026-04-14] - [Performance / reliability pass + large QoL feature set]
+### What Was Implemented
+- Hot-path perf fixes (commit `df13235`):
+  - `EnchantmentParser`: replaced full-input `toLowerCase()` with `regionMatches(true, ...)` for the prefix check; added duplicate-id detection so `sharpness:5,sharpness:3` is rejected up front.
+  - `GiveCommand` suggestion provider: null-check `source.getServer()`; cap emitted suggestions at 50 to bound per-keystroke work.
+  - `MinecraftCompatibility`: memoized `ComponentReadAccess.read` by component class and `RegistryLookupAccess.findHolder` by id class; cached method lists are now `List.copyOf` for defensive immutability.
+- QoL feature set (this commit):
+  - New `/unenchant <targets> [enchantment]`.
+  - New `/enchantinfo <enchantment>` — shows vanilla and mod-allowed max level.
+  - New `/enchantlist [filter]` — paginated registry listing.
+  - New `/enchantpreset save|apply|list|delete` — reusable enchantment bundles persisted to config.
+  - New `/repair <targets> <item> [count]` — one-shot give with Mending (+ Unbreaking 3 when compatible).
+  - New `/enchants` umbrella hosting `status`, `undo`, `confirm`, and OP-gated `allow_all_enchantments`.
+  - `/enchant list` (subcommand) — prints enchantments on the held item.
+  - Tab-complete level hints in `/enchant` (1/5/10/32/64/128/255).
+  - Item-aware tab completion in `/give` — filters enchantment suggestions by compatibility with the chosen item when strict mode is on.
+  - Strict compatibility validation — refuses incompatible pairings with exact message `You cannot enchant <item> with <enchantment>`. Disabled by toggling `allow_all_enchantments=true` (OP only, permission level 4).
+  - Confirmation flow — commands targeting more than `confirmation_threshold` (default 10) players must be resumed via `/enchants confirm <token>` within 30s.
+  - Per-operator undo stack (bounded, configurable) covering `/enchant`, `/unenchant`, and `/enchantpreset apply`.
+  - Audit logger — structured lines on `better-enchant-commands.audit` when `audit_log_enabled=true`.
+  - LuckPerms / fabric-permissions-api soft integration via reflection, with granular nodes defined for every command.
+  - i18n via `Component.translatableWithFallback` + shipped `en_us.json`.
+  - Persistent JSON config at `config/better-enchant-commands.json`, atomically written.
+- Documentation: README fully rewritten to cover the new command surface, config, permissions, undo, audit, and confirmation flow.
+- Verification: added in-game stress checks for `/enchantlist`, `/enchantinfo`, `/enchants status`, `/unenchant`, `/enchants undo`, and `/give` duplicate-id rejection.
+
+### Files Modified (highlights)
+- `src/main/java/com/agaminggod/betterenchantcommands/BetterEnchantCommands.java` — registers all commands; loads config; clears undo history on shutdown.
+- `src/main/java/com/agaminggod/betterenchantcommands/command/EnchantCommand.java` — compat check, level suggestions, `list` subcommand, undo snapshots, confirmation staging, i18n.
+- `src/main/java/com/agaminggod/betterenchantcommands/command/GiveCommand.java` — compat check, item-aware suggestions, i18n, audit.
+- New command classes under `command/`: `UnenchantCommand`, `EnchantInfoCommand`, `EnchantListCommand`, `EnchantPresetCommand`, `RepairCommand`, `EnchantsCommand`.
+- New packages: `config/`, `permission/`, `undo/`, `audit/`, `confirmation/`, plus `util/EnchantmentCompat` and `util/Messages`.
+- `src/main/resources/assets/better-enchant-commands/lang/en_us.json` — translation fallbacks.
+- `README.md` — rewritten.
+
+### Assumptions Made (flag these for review)
+- `Enchantment#canEnchant(ItemStack)` is the correct vanilla compatibility predicate for the pinned MC version.
+- `ItemEnchantments#keySet()` and `Mutable#set(holder, level)` are stable in 1.21.11 mappings.
+- `Component.translatableWithFallback` is available and renders `%s`/`%d` substitutions.
+- LuckPerms detection is best-effort: if `me.lucko.fabric.api.permissions.v0.Permissions.check` isn't resolvable, fall back silently.
+- `config/better-enchant-commands.json` lives under the Fabric config directory (`FabricLoader#getConfigDir`).
+
 ## [2026-03-06] - [Implement EnchantPlus Fabric 1.21.x command override mod]
 ### What Was Implemented
 - Created a fresh Fabric mod scaffold in the current project root with Java 21 and Mojang mappings.

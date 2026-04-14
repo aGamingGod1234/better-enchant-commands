@@ -73,6 +73,17 @@ public final class InGameStressVerifier {
                 "/give rejects unknown enchantment");
             assertFailure(counter, source, server, "give @s minecraft:diamond_sword enchantments:badformat",
                 "/give rejects malformed enchantment token");
+            assertFailure(counter, source, server,
+                "give @s minecraft:diamond_sword enchantments:sharpness:5,sharpness:10",
+                "/give rejects duplicate enchantment ids");
+
+            assertSuccess(counter, source, server, "enchantlist", "/enchantlist shows available enchantments");
+            assertSuccess(counter, source, server, "enchantinfo minecraft:sharpness",
+                "/enchantinfo shows info for sharpness");
+            assertSuccess(counter, source, server, "enchants status", "/enchants status prints config");
+            assertSuccess(counter, source, server, "unenchant @s minecraft:sharpness",
+                "/unenchant removes a specific enchantment");
+            assertSuccess(counter, source, server, "enchants undo", "/enchants undo restores previous state");
 
             runStressLoop(counter, source, server);
         } catch (Exception exception) {

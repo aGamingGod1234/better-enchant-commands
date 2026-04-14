@@ -193,7 +193,7 @@ public final class MinecraftCompatibility {
             throw new IllegalStateException("Unsupported component read model for item stack class " + stackClass.getName());
         }
 
-        return new ComponentReadAccess(twoArgMethods, oneArgMethods);
+        return new ComponentReadAccess(List.copyOf(twoArgMethods), List.copyOf(oneArgMethods));
     }
 
     private static RegistryLookupAccess resolveRegistryLookupAccess(final Class<?> registryClass) {
@@ -221,7 +221,7 @@ public final class MinecraftCompatibility {
             throw new IllegalStateException("Unsupported registry lookup model for registry class " + registryClass.getName());
         }
 
-        return new RegistryLookupAccess(optionalLookupMethods, holderWrapMethods);
+        return new RegistryLookupAccess(List.copyOf(optionalLookupMethods), List.copyOf(holderWrapMethods));
     }
 
     private static Method findInstanceMethod(final Class<?> owner, final Class<?> returnType, final Class<?> parameterType) {
@@ -316,17 +316,42 @@ public final class MinecraftCompatibility {
         }
     }
 
-    private record ComponentReadAccess(List<Method> twoArgMethods, List<Method> oneArgMethods) {
+    private static final class ComponentReadAccess {
+        private final List<Method> twoArgMethods;
+        private final List<Method> oneArgMethods;
+        private final ConcurrentMap<Class<?>, Method> twoArgByComponentType = new ConcurrentHashMap<>();
+        private final ConcurrentMap<Class<?>, Method> oneArgByComponentType = new ConcurrentHashMap<>();
+
+        ComponentReadAccess(final List<Method> twoArgMethods, final List<Method> oneArgMethods) {
+            this.twoArgMethods = twoArgMethods;
+            this.oneArgMethods = oneArgMethods;
+        }
+
         Object read(final ItemStack stack, final Object componentType, final Object fallbackValue) throws ReflectiveOperationException {
+            final Class<?> componentClass = componentType.getClass();
+
+            final Method cachedTwoArg = twoArgByComponentType.get(componentClass);
+            if (cachedTwoArg != null) {
+                return invoke(cachedTwoArg, stack, componentType, fallbackValue);
+            }
+
+            final Method cachedOneArg = oneArgByComponentType.get(componentClass);
+            if (cachedOneArg != null) {
+                final Object resolved = invoke(cachedOneArg, stack, componentType);
+                return resolved == null ? fallbackValue : resolved;
+            }
+
             for (Method method : twoArgMethods) {
                 if (method.getParameterTypes()[0].isInstance(componentType)
                     && method.getParameterTypes()[1].isInstance(fallbackValue)) {
+                    twoArgByComponentType.putIfAbsent(componentClass, method);
                     return invoke(method, stack, componentType, fallbackValue);
                 }
             }
 
             for (Method method : oneArgMethods) {
                 if (method.getParameterTypes()[0].isInstance(componentType)) {
+                    oneArgByComponentType.putIfAbsent(componentClass, method);
                     final Object resolved = invoke(method, stack, componentType);
                     return resolved == null ? fallbackValue : resolved;
                 }
@@ -336,15 +361,33 @@ public final class MinecraftCompatibility {
         }
     }
 
-    private record RegistryLookupAccess(List<Method> optionalLookupMethods, List<Method> holderWrapMethods) {
+    private static final class RegistryLookupAccess {
+        private final List<Method> optionalLookupMethods;
+        private final List<Method> holderWrapMethods;
+        private final ConcurrentMap<Class<?>, List<Method>> lookupMethodsByIdType = new ConcurrentHashMap<>();
+
+        RegistryLookupAccess(final List<Method> optionalLookupMethods, final List<Method> holderWrapMethods) {
+            this.optionalLookupMethods = optionalLookupMethods;
+            this.holderWrapMethods = holderWrapMethods;
+        }
+
         Object findHolder(final Object registry, final Object id) throws ReflectiveOperationException {
+            final List<Method> applicableLookups = lookupMethodsByIdType.computeIfAbsent(
+                id.getClass(),
+                idClass -> {
+                    final List<Method> matching = new ArrayList<>();
+                    for (Method candidate : optionalLookupMethods) {
+                        if (candidate.getParameterTypes()[0].isAssignableFrom(idClass)) {
+                            matching.add(candidate);
+                        }
+                    }
+                    return List.copyOf(matching);
+                }
+            );
+
             Object directValue = null;
 
-            for (Method candidate : optionalLookupMethods) {
-                if (!candidate.getParameterTypes()[0].isInstance(id)) {
-                    continue;
-                }
-
+            for (Method candidate : applicableLookups) {
                 final Optional<?> optional = (Optional<?>) invoke(candidate, registry, id);
                 if (optional.isEmpty()) {
                     continue;
