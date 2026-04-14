@@ -39,11 +39,11 @@ public final class EnchantsCommand {
             Commands.literal(COMMAND_NAME)
                 .requires(source -> PermissionHelper.check(source, PermissionHelper.NODE_ENCHANTS, REQUIRED_PERMISSION_LEVEL))
                 .then(Commands.literal("allow_all_enchantments")
-                    .requires(source -> PermissionHelper.check(source, PermissionHelper.NODE_ENCHANTS_ADMIN, ADMIN_PERMISSION_LEVEL))
+                    .executes(EnchantsCommand::executeAllowAllStatus)
                     .then(Commands.argument("value", BoolArgumentType.bool())
+                        .requires(source -> PermissionHelper.check(source, PermissionHelper.NODE_ENCHANTS_ADMIN, ADMIN_PERMISSION_LEVEL))
                         .executes(EnchantsCommand::executeAllowAll)
                     )
-                    .executes(EnchantsCommand::executeAllowAllStatus)
                 )
                 .then(Commands.literal("undo").executes(EnchantsCommand::executeUndo))
                 .then(Commands.literal("confirm")
@@ -126,11 +126,11 @@ public final class EnchantsCommand {
         }
 
         try {
-            pending.action().run();
-            return 1;
+            return pending.action().getAsInt();
         } catch (RuntimeException exception) {
+            final String message = exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
             source.sendFailure(Messages.error("confirm.failed",
-                "The confirmed action threw an error: %s", exception.getMessage()));
+                "The confirmed action threw an error: %s", message));
             return 0;
         }
     }

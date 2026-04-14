@@ -98,7 +98,7 @@ public final class EnchantCommand {
                     "/enchant on " + capturedTargets.size() + " targets with " + enchantmentId + " " + level,
                     () -> applyEnchantment(source, capturedTargets, enchantmentHolder, enchantmentId, level));
                 source.sendFailure(Messages.error("error.confirmation_required",
-                    "This would affect %d targets. Re-run with /enchants confirm %s within 30s.",
+                    "This would affect %d targets. Run /enchants confirm %s within 30s or the request will expire.",
                     capturedTargets.size(), pending.token()));
                 return 0;
             }

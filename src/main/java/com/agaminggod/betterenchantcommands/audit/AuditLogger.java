@@ -76,6 +76,10 @@ public final class AuditLogger {
     }
 
     public static void logConfigChange(final CommandSourceStack operator, final String key, final Object value) {
+        if (!BetterEnchantConfig.auditLogEnabled()) {
+            return;
+        }
+
         LOGGER.info("[AUDIT] action=config operator={} key={} value={}",
             operatorName(operator), key, value);
     }

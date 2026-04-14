@@ -74,6 +74,17 @@ public final class UndoManager {
         HISTORY.clear();
     }
 
+    /**
+     * Drops the undo stack for one operator. Call on player disconnect so a
+     * long-running server doesn't accumulate stacks for players who have left.
+     */
+    public static void forgetOwner(final UUID ownerId) {
+        if (ownerId == null) {
+            return;
+        }
+        HISTORY.remove(ownerId);
+    }
+
     private static UUID ownerOf(final CommandSourceStack source) {
         if (source.getEntity() instanceof ServerPlayer player) {
             return player.getUUID();

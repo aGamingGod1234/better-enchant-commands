@@ -57,7 +57,15 @@ public final class PermissionHelper {
                 }
 
                 final Class<?>[] parameters = candidate.getParameterTypes();
-                if (parameters[1] == String.class && parameters[2] == int.class) {
+                if (parameters[1] != String.class || parameters[2] != int.class) {
+                    continue;
+                }
+
+                // First parameter must accept a CommandSourceStack. Accept either a
+                // direct assignable type or the fabric-permissions-api canonical
+                // SharedSuggestionProvider; reject permissive Object-typed overloads
+                // that would later ClassCastException at invocation.
+                if (parameters[0].isAssignableFrom(CommandSourceStack.class)) {
                     return candidate;
                 }
             }

@@ -4,6 +4,7 @@ import com.agaminggod.betterenchantcommands.BetterEnchantCommands;
 import com.agaminggod.betterenchantcommands.audit.AuditLogger;
 import com.agaminggod.betterenchantcommands.compat.MinecraftCompatibility;
 import com.agaminggod.betterenchantcommands.config.BetterEnchantConfig;
+import com.agaminggod.betterenchantcommands.confirmation.ConfirmationManager;
 import com.agaminggod.betterenchantcommands.permission.PermissionHelper;
 import com.agaminggod.betterenchantcommands.util.EnchantmentCompat;
 import com.agaminggod.betterenchantcommands.util.EnchantmentParser;
@@ -117,62 +118,19 @@ public final class GiveCommand {
                 return 0;
             }
 
-            if (!BetterEnchantConfig.allowAllEnchantments() && !resolvedEnchantments.isEmpty()) {
-                final ItemStack sample = itemInput.createItemStack(1, false);
-                final String itemName = sample.getHoverName().getString();
-                for (Map.Entry<Holder<Enchantment>, Integer> entry : resolvedEnchantments.entrySet()) {
-                    if (!EnchantmentCompat.isCompatible(sample, entry.getKey())) {
-                        final String id = EnchantmentCompat.shortId(entry.getKey());
-                        source.sendFailure(Messages.error("error.incompatible",
-                            "You cannot enchant %s with %s", itemName, id));
-                        return 0;
-                    }
-                }
+            if (targets.size() > BetterEnchantConfig.confirmationThreshold()) {
+                final Collection<ServerPlayer> capturedTargets = List.copyOf(targets);
+                final Map<Holder<Enchantment>, Integer> capturedEnch = Map.copyOf(resolvedEnchantments);
+                final ConfirmationManager.PendingOperation pending = ConfirmationManager.store(source,
+                    "/give on " + capturedTargets.size() + " targets",
+                    () -> distributeItems(source, capturedTargets, itemInput, count, capturedEnch));
+                source.sendFailure(Messages.error("error.confirmation_required",
+                    "This would affect %d targets. Run /enchants confirm %s within 30s or the request will expire.",
+                    capturedTargets.size(), pending.token()));
+                return 0;
             }
 
-            int successfulTargets = 0;
-            final List<String> failedTargets = new ArrayList<>();
-
-            for (ServerPlayer target : targets) {
-                try {
-                    final ItemStack stack = itemInput.createItemStack(count, false);
-                    applyEnchantmentsToStack(stack, resolvedEnchantments);
-                    final boolean added = target.getInventory().add(stack);
-
-                    if (!added && !stack.isEmpty()) {
-                        target.drop(stack, false);
-                    }
-
-                    successfulTargets++;
-                    final String itemName = stack.getHoverName().getString();
-                    final String targetName = target.getScoreboardName();
-                    final int enchCount = resolvedEnchantments.size();
-                    source.sendSuccess(() -> enchCount == 0
-                        ? Messages.success("success.give",
-                            "Gave %d [%s] to %s", count, itemName, targetName)
-                        : Messages.success("success.give_enchanted",
-                            "Gave %d [%s] to %s with %d enchantment(s)",
-                            count, itemName, targetName, enchCount), true);
-                } catch (IllegalStateException exception) {
-                    failedTargets.add(target.getScoreboardName() + " (compatibility error)");
-                    BetterEnchantCommands.LOGGER.error("Compatibility error giving item to {}",
-                        target.getScoreboardName(), exception);
-                } catch (RuntimeException exception) {
-                    failedTargets.add(target.getScoreboardName() + " (internal error)");
-                    BetterEnchantCommands.LOGGER.error("Failed to give item to {}: {}",
-                        target.getScoreboardName(), exception.getMessage());
-                }
-            }
-
-            if (successfulTargets > 0) {
-                AuditLogger.logGive(source, targets, itemName(itemInput), count, resolvedEnchantments);
-            }
-
-            if (!failedTargets.isEmpty()) {
-                source.sendFailure(Component.literal(formatFailedTargets(failedTargets)).withStyle(ChatFormatting.RED));
-            }
-
-            return successfulTargets;
+            return distributeItems(source, targets, itemInput, count, resolvedEnchantments);
         } catch (CommandSyntaxException exception) {
             source.sendFailure(Component.literal(exception.getMessage()).withStyle(ChatFormatting.RED));
             return 0;
@@ -182,6 +140,71 @@ public final class GiveCommand {
             BetterEnchantCommands.LOGGER.error("Unhandled /give error: {}", exception.getMessage(), exception);
             return 0;
         }
+    }
+
+    static int distributeItems(
+        final CommandSourceStack source,
+        final Collection<ServerPlayer> targets,
+        final ItemInput itemInput,
+        final int count,
+        final Map<Holder<Enchantment>, Integer> resolvedEnchantments
+    ) {
+        if (!BetterEnchantConfig.allowAllEnchantments() && !resolvedEnchantments.isEmpty()) {
+            final ItemStack sample = itemInput.createItemStack(1, false);
+            final String itemName = sample.getHoverName().getString();
+            for (Map.Entry<Holder<Enchantment>, Integer> entry : resolvedEnchantments.entrySet()) {
+                if (!EnchantmentCompat.isCompatible(sample, entry.getKey())) {
+                    final String id = EnchantmentCompat.shortId(entry.getKey());
+                    source.sendFailure(Messages.error("error.incompatible",
+                        "You cannot enchant %s with %s", itemName, id));
+                    return 0;
+                }
+            }
+        }
+
+        int successfulTargets = 0;
+        final List<String> failedTargets = new ArrayList<>();
+
+        for (ServerPlayer target : targets) {
+            try {
+                final ItemStack stack = itemInput.createItemStack(count, false);
+                applyEnchantmentsToStack(stack, resolvedEnchantments);
+                final boolean added = target.getInventory().add(stack);
+
+                if (!added && !stack.isEmpty()) {
+                    target.drop(stack, false);
+                }
+
+                successfulTargets++;
+                final String itemName = stack.getHoverName().getString();
+                final String targetName = target.getScoreboardName();
+                final int enchCount = resolvedEnchantments.size();
+                source.sendSuccess(() -> enchCount == 0
+                    ? Messages.success("success.give",
+                        "Gave %d [%s] to %s", count, itemName, targetName)
+                    : Messages.success("success.give_enchanted",
+                        "Gave %d [%s] to %s with %d enchantment(s)",
+                        count, itemName, targetName, enchCount), true);
+            } catch (IllegalStateException exception) {
+                failedTargets.add(target.getScoreboardName() + " (compatibility error)");
+                BetterEnchantCommands.LOGGER.error("Compatibility error giving item to {}",
+                    target.getScoreboardName(), exception);
+            } catch (RuntimeException exception) {
+                failedTargets.add(target.getScoreboardName() + " (internal error)");
+                BetterEnchantCommands.LOGGER.error("Failed to give item to {}: {}",
+                    target.getScoreboardName(), exception.getMessage());
+            }
+        }
+
+        if (successfulTargets > 0) {
+            AuditLogger.logGive(source, targets, itemName(itemInput), count, resolvedEnchantments);
+        }
+
+        if (!failedTargets.isEmpty()) {
+            source.sendFailure(Component.literal(formatFailedTargets(failedTargets)).withStyle(ChatFormatting.RED));
+        }
+
+        return successfulTargets;
     }
 
     private static String itemName(final ItemInput itemInput) {

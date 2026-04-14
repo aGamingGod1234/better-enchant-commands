@@ -15,6 +15,7 @@ import com.agaminggod.betterenchantcommands.verification.InGameStressVerifier;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +40,8 @@ public final class BetterEnchantCommands implements ModInitializer {
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> UndoManager.clear());
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
+            UndoManager.forgetOwner(handler.player.getUUID()));
 
         if (Boolean.getBoolean(STRESS_TEST_PROPERTY)) {
             LOGGER.info("Better Enchant Commands in-game stress verification enabled via -D{}", STRESS_TEST_PROPERTY);

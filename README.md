@@ -173,7 +173,7 @@ Set `audit_log_enabled` to `true` in the config file to emit structured audit li
 }
 ```
 
-The file is written automatically the first time the server starts. Edits to the `presets` block are picked up on server restart; edits to the other flags are also picked up on restart, but `allow_all_enchantments` should be toggled in-game with `/enchants` so the change is audited.
+The file is written automatically the first time the server starts. **Manual edits to the config file are only picked up at server startup** — the mod does not hot-reload the file. Use the in-game commands (`/enchants allow_all_enchantments`, `/enchantpreset save|delete`) to change settings live; those writes are atomic and flushed to disk immediately.
 
 ## Permissions
 
