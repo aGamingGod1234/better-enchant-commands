@@ -1,6 +1,7 @@
 package com.agaminggod.betterenchantcommands.config;
 
 import com.agaminggod.betterenchantcommands.BetterEnchantCommands;
+import com.agaminggod.betterenchantcommands.util.EnchantmentParser;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -228,7 +229,12 @@ public final class BetterEnchantConfig {
                 final JsonObject presetJson = element.getAsJsonObject();
                 final String id = optString(presetJson, "id", null);
                 final int level = optInt(presetJson, "level", -1);
-                if (id == null || id.isBlank() || level < 1) {
+                if (id == null || id.isBlank()
+                    || level < EnchantmentParser.MIN_LEVEL
+                    || level > EnchantmentParser.MAX_LEVEL) {
+                    // Silently drop out-of-range/invalid entries on load to defend
+                    // against hand-edited or corrupted config files shipping levels
+                    // beyond the parser/command bounds.
                     continue;
                 }
                 entries.add(new PresetEntry(id, level));

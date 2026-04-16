@@ -150,7 +150,13 @@ public final class GiveCommand {
         final Map<Holder<Enchantment>, Integer> resolvedEnchantments
     ) {
         if (!BetterEnchantConfig.allowAllEnchantments() && !resolvedEnchantments.isEmpty()) {
-            final ItemStack sample = itemInput.createItemStack(1, false);
+            final ItemStack sample;
+            try {
+                sample = itemInput.createItemStack(1, false);
+            } catch (CommandSyntaxException exception) {
+                source.sendFailure(Messages.error("error.syntax", "%s", exception.getMessage()));
+                return 0;
+            }
             final String itemName = sample.getHoverName().getString();
             for (Map.Entry<Holder<Enchantment>, Integer> entry : resolvedEnchantments.entrySet()) {
                 if (!EnchantmentCompat.isCompatible(sample, entry.getKey())) {
@@ -185,6 +191,10 @@ public final class GiveCommand {
                     : Messages.success("success.give_enchanted",
                         "Gave %d [%s] to %s with %d enchantment(s)",
                         count, itemName, targetName, enchCount), true);
+            } catch (CommandSyntaxException exception) {
+                failedTargets.add(target.getScoreboardName() + " (syntax error)");
+                BetterEnchantCommands.LOGGER.error("Syntax error giving item to {}: {}",
+                    target.getScoreboardName(), exception.getMessage());
             } catch (IllegalStateException exception) {
                 failedTargets.add(target.getScoreboardName() + " (compatibility error)");
                 BetterEnchantCommands.LOGGER.error("Compatibility error giving item to {}",
@@ -210,7 +220,7 @@ public final class GiveCommand {
     private static String itemName(final ItemInput itemInput) {
         try {
             return itemInput.createItemStack(1, false).getItem().toString();
-        } catch (RuntimeException exception) {
+        } catch (CommandSyntaxException | RuntimeException exception) {
             return "unknown";
         }
     }
@@ -367,7 +377,9 @@ public final class GiveCommand {
         try {
             final ItemInput itemInput = ItemArgument.getItem(context, ITEM_ARGUMENT);
             return itemInput.createItemStack(1, false);
-        } catch (IllegalArgumentException | CommandSyntaxException | RuntimeException exception) {
+        } catch (CommandSyntaxException | RuntimeException exception) {
+            // RuntimeException covers IllegalArgumentException and other unchecked
+            // parsing failures while the suggestion provider is being populated.
             return null;
         }
     }

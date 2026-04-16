@@ -34,6 +34,21 @@ public final class ConfirmationManager {
         return op;
     }
 
+    /**
+     * Variant of {@link #store} that additionally returns any prior pending operation
+     * that was replaced. Callers can surface this to the operator so they are not
+     * silently left with a stale/orphaned confirmation token.
+     */
+    public static StoreResult storeWithReplacement(
+        final CommandSourceStack source, final String description, final IntSupplier action) {
+        clearExpired();
+        final UUID owner = ownerOf(source);
+        final String token = UUID.randomUUID().toString();
+        final PendingOperation op = new PendingOperation(token, description, action, System.nanoTime() + DEFAULT_TTL_NANOS);
+        final PendingOperation previous = PENDING.put(owner, op);
+        return new StoreResult(op, previous != null && System.nanoTime() <= previous.expiresAtNanos ? previous : null);
+    }
+
     public static PendingOperation consume(final CommandSourceStack source, final String token) {
         clearExpired();
         final UUID owner = ownerOf(source);
@@ -70,5 +85,8 @@ public final class ConfirmationManager {
     }
 
     public record PendingOperation(String token, String description, IntSupplier action, long expiresAtNanos) {
+    }
+
+    public record StoreResult(PendingOperation stored, PendingOperation replaced) {
     }
 }
