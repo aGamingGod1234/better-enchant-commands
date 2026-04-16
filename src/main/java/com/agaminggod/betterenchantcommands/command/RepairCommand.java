@@ -39,7 +39,36 @@ public final class RepairCommand {
     private static final Identifier MENDING_ID = Identifier.parse("minecraft:mending");
     private static final Identifier UNBREAKING_ID = Identifier.parse("minecraft:unbreaking");
 
+    // Holder lookups go through a reflective compat resolver; the enchantment
+    // registry is stable for the server lifetime, so we cache per registry instance
+    // and invalidate automatically when a new registry (new server session) appears.
+    private static volatile Registry<Enchantment> cachedRegistry;
+    private static volatile Holder<Enchantment> cachedMending;
+    private static volatile Holder<Enchantment> cachedUnbreaking;
+
     private RepairCommand() {
+    }
+
+    private static Holder<Enchantment> mendingHolder(final Registry<Enchantment> registry) {
+        refreshHolderCache(registry);
+        return cachedMending;
+    }
+
+    private static Holder<Enchantment> unbreakingHolder(final Registry<Enchantment> registry) {
+        refreshHolderCache(registry);
+        return cachedUnbreaking;
+    }
+
+    private static void refreshHolderCache(final Registry<Enchantment> registry) {
+        if (cachedRegistry != registry) {
+            synchronized (RepairCommand.class) {
+                if (cachedRegistry != registry) {
+                    cachedMending = MinecraftCompatibility.findRegistryHolderById(registry, MENDING_ID);
+                    cachedUnbreaking = MinecraftCompatibility.findRegistryHolderById(registry, UNBREAKING_ID);
+                    cachedRegistry = registry;
+                }
+            }
+        }
     }
 
     public static void register(
@@ -72,8 +101,8 @@ public final class RepairCommand {
             final var targets = EntityArgument.getPlayers(context, TARGETS_ARGUMENT);
 
             final Registry<Enchantment> registry = source.getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
-            final Holder<Enchantment> mending = MinecraftCompatibility.findRegistryHolderById(registry, MENDING_ID);
-            final Holder<Enchantment> unbreaking = MinecraftCompatibility.findRegistryHolderById(registry, UNBREAKING_ID);
+            final Holder<Enchantment> mending = mendingHolder(registry);
+            final Holder<Enchantment> unbreaking = unbreakingHolder(registry);
 
             if (mending == null) {
                 source.sendFailure(Messages.error("error.missing_enchantment",

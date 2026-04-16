@@ -53,7 +53,11 @@ public final class EnchantmentParser {
                 return ParseResult.failure("Found an empty enchantment entry. Expected <id>:<level> entries separated by commas.");
             }
 
-            final String[] parts = token.split(PART_SEPARATOR);
+            // Split off just the trailing ":<level>" so that modded IDs with the
+            // shape <namespace>:<path> are preserved verbatim and fed through
+            // Identifier.parse once. This avoids ambiguity when a registry ID
+            // contains only 2 vs 3 colon-separated parts.
+            final String[] parts = splitTrailingLevel(token);
             final ParsedToken parsedToken = parseToken(parts, token);
             if (!parsedToken.success()) {
                 return ParseResult.failure(parsedToken.errorMessage());
@@ -89,6 +93,29 @@ public final class EnchantmentParser {
         }
 
         return ParseResult.success(parsedEnchantments);
+    }
+
+    /**
+     * Splits a token of the form {@code <id>:<level>} or {@code <namespace>:<path>:<level>}
+     * into at most two pieces: the full id portion and the level portion. Splitting on
+     * the last {@code ':'} (rather than on every {@code ':'}) avoids the ambiguity when
+     * a registry id contains multiple colons.
+     */
+    private static String[] splitTrailingLevel(final String token) {
+        final int lastColon = token.lastIndexOf(PART_SEPARATOR);
+        if (lastColon < 0) {
+            return new String[]{token};
+        }
+        final String idPart = token.substring(0, lastColon);
+        final String levelPart = token.substring(lastColon + 1);
+        // If the id portion itself contains a colon, treat it as namespace:path.
+        final int nsColon = idPart.indexOf(PART_SEPARATOR);
+        if (nsColon < 0) {
+            return new String[]{idPart, levelPart};
+        }
+        final String namespace = idPart.substring(0, nsColon);
+        final String path = idPart.substring(nsColon + 1);
+        return new String[]{namespace, path, levelPart};
     }
 
     private static ParsedToken parseToken(final String[] parts, final String originalToken) {

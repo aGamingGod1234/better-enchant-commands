@@ -17,6 +17,7 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.regex.Pattern;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -36,6 +37,14 @@ public final class EnchantPresetCommand {
     private static final String NAME_ARGUMENT = "name";
     private static final String TARGETS_ARGUMENT = "targets";
     private static final int REQUIRED_PERMISSION_LEVEL = 2;
+
+    /**
+     * Preset names are written to disk and emitted into structured audit logs, so they
+     * need a bounded length and a restricted character set to prevent unbounded disk
+     * growth and log-injection via control characters.
+     */
+    private static final int MAX_PRESET_NAME_LENGTH = 64;
+    private static final Pattern PRESET_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_\\-]+");
 
     private static final SuggestionProvider<CommandSourceStack> PRESET_NAME_SUGGESTIONS = (context, builder) -> {
         final String remaining = builder.getRemainingLowerCase();
@@ -103,6 +112,12 @@ public final class EnchantPresetCommand {
     private static int executeSave(final CommandContext<CommandSourceStack> context) {
         final CommandSourceStack source = context.getSource();
         final String name = StringArgumentType.getString(context, NAME_ARGUMENT);
+        if (!isValidPresetName(name)) {
+            source.sendFailure(Messages.error("preset.bad_name",
+                "Preset name must be 1-%d characters, letters/digits/underscore/hyphen only.",
+                MAX_PRESET_NAME_LENGTH));
+            return 0;
+        }
         try {
             final ServerPlayer player = source.getPlayerOrException();
             final ItemStack stack = player.getMainHandItem();
@@ -145,6 +160,12 @@ public final class EnchantPresetCommand {
     private static int executeDelete(final CommandContext<CommandSourceStack> context) {
         final CommandSourceStack source = context.getSource();
         final String name = StringArgumentType.getString(context, NAME_ARGUMENT);
+        if (!isValidPresetName(name)) {
+            source.sendFailure(Messages.error("preset.bad_name",
+                "Preset name must be 1-%d characters, letters/digits/underscore/hyphen only.",
+                MAX_PRESET_NAME_LENGTH));
+            return 0;
+        }
         if (!BetterEnchantConfig.deletePreset(name)) {
             source.sendFailure(Messages.error("preset.not_found",
                 "Preset \"%s\" does not exist.", name));
@@ -196,9 +217,11 @@ public final class EnchantPresetCommand {
 
             final UndoManager.Snapshot snapshot = UndoManager.beginMainHandSnapshot("/enchantpreset apply " + name);
             int successes = 0;
+            final List<String> emptyHandTargets = new ArrayList<>();
             for (ServerPlayer target : targets) {
                 final ItemStack stack = target.getMainHandItem();
                 if (stack.isEmpty()) {
+                    emptyHandTargets.add(target.getScoreboardName());
                     continue;
                 }
 
@@ -235,6 +258,12 @@ public final class EnchantPresetCommand {
                 source.sendSuccess(() -> Messages.success("preset.applied",
                     "Applied preset \"%s\" to %d player(s).", name, finalSuccesses), true);
             }
+            if (!emptyHandTargets.isEmpty()) {
+                final String skipped = String.join(", ", emptyHandTargets);
+                source.sendFailure(Messages.error("preset.skipped_empty",
+                    "Skipped %d player(s) with empty hands: %s",
+                    emptyHandTargets.size(), skipped));
+            }
             return successes;
         } catch (CommandSyntaxException exception) {
             source.sendFailure(Messages.error("error.syntax", "%s", exception.getMessage()));
@@ -248,5 +277,12 @@ public final class EnchantPresetCommand {
     }
 
     private record ResolvedEntry(Holder<Enchantment> holder, int level, String id) {
+    }
+
+    private static boolean isValidPresetName(String name) {
+        if (name == null || name.isEmpty() || name.length() > MAX_PRESET_NAME_LENGTH) {
+            return false;
+        }
+        return PRESET_NAME_PATTERN.matcher(name).matches();
     }
 }

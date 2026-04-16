@@ -81,7 +81,8 @@ public final class AuditLogger {
         }
 
         LOGGER.info("[AUDIT] action=config operator={} key={} value={}",
-            operatorName(operator), key, value);
+            operatorName(operator), sanitize(key),
+            sanitize(value == null ? "null" : value.toString()));
     }
 
     public static void logUndo(final CommandSourceStack operator, final String label, final int restored) {
@@ -90,12 +91,12 @@ public final class AuditLogger {
         }
 
         LOGGER.info("[AUDIT] action=undo operator={} label=\"{}\" restored={}",
-            operatorName(operator), label, restored);
+            operatorName(operator), sanitize(label), restored);
     }
 
     private static String operatorName(final CommandSourceStack operator) {
         try {
-            return operator.getTextName();
+            return sanitize(operator.getTextName());
         } catch (RuntimeException exception) {
             return "unknown";
         }
@@ -108,10 +109,32 @@ public final class AuditLogger {
             if (!first) {
                 sb.append(',');
             }
-            sb.append(player.getScoreboardName());
+            sb.append(sanitize(player.getScoreboardName()));
             first = false;
         }
         sb.append(']');
         return sb.toString();
+    }
+
+    /**
+     * Replace ASCII control characters (including newline/tab/ANSI escapes) with a
+     * placeholder so an attacker-chosen name or key cannot inject forged lines into
+     * the structured audit log. This is cheap and only runs when audit logging is
+     * enabled.
+     */
+    private static String sanitize(final String value) {
+        if (value == null || value.isEmpty()) {
+            return value == null ? "" : value;
+        }
+        final StringBuilder out = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            final char c = value.charAt(i);
+            if (c < 0x20 || c == 0x7F) {
+                out.append('_');
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
     }
 }
