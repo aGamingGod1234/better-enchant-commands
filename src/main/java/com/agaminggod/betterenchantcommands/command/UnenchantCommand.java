@@ -61,7 +61,19 @@ public final class UnenchantCommand {
     ) {
         final CommandSourceStack source = context.getSource();
         try {
-            final Collection<ServerPlayer> targets = EntityArgument.getPlayers(context, TARGETS_ARGUMENT);
+            return applyUnenchantment(source, EntityArgument.getPlayers(context, TARGETS_ARGUMENT), specificEnchantment);
+        } catch (CommandSyntaxException exception) {
+            source.sendFailure(Component.literal(exception.getMessage()).withStyle(ChatFormatting.RED));
+            return 0;
+        }
+    }
+
+    private static int applyUnenchantment(
+        final CommandSourceStack source,
+        final Collection<ServerPlayer> targets,
+        final Holder<Enchantment> specificEnchantment
+    ) {
+        try {
             final String targetId = specificEnchantment == null
                 ? null
                 : EnchantmentCompat.shortId(specificEnchantment);
@@ -91,13 +103,14 @@ public final class UnenchantCommand {
 
                 if (specificEnchantment == null) {
                     stack.set(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY);
+                    target.getInventory().setSelectedItem(stack);
                     final String targetName = target.getScoreboardName();
                     final String itemName = stack.getHoverName().getString();
                     source.sendSuccess(() -> Messages.success("success.unenchant_all",
                         "Removed all enchantments from %s's %s", targetName, itemName), true);
                     successfulTargets++;
                 } else {
-                    if (current.getLevel(specificEnchantment) <= 0) {
+                    if (levelOf(current, specificEnchantment) <= 0) {
                         failedTargets.add(target.getScoreboardName() + " (item doesn't have " + targetId + ")");
                         continue;
                     }
@@ -106,12 +119,13 @@ public final class UnenchantCommand {
                     // relying on Mutable.set(holder, 0) semantics across versions.
                     final ItemEnchantments.Mutable mutable = new ItemEnchantments.Mutable(ItemEnchantments.EMPTY);
                     for (Holder<Enchantment> holder : current.keySet()) {
-                        if (holder.equals(specificEnchantment)) {
+                        if (isSameEnchantment(holder, specificEnchantment)) {
                             continue;
                         }
                         mutable.set(holder, current.getLevel(holder));
                     }
                     stack.set(DataComponents.ENCHANTMENTS, mutable.toImmutable());
+                    target.getInventory().setSelectedItem(stack);
                     final String targetName = target.getScoreboardName();
                     source.sendSuccess(() -> Messages.success("success.unenchant_one",
                         "Removed %s from %s's held item", targetId, targetName), true);
@@ -129,15 +143,42 @@ public final class UnenchantCommand {
             }
 
             return successfulTargets;
-        } catch (CommandSyntaxException exception) {
-            source.sendFailure(Component.literal(exception.getMessage()).withStyle(ChatFormatting.RED));
-            return 0;
         } catch (RuntimeException exception) {
             source.sendFailure(Messages.error("error.internal",
                 "An internal error occurred while running /unenchant. Check server logs."));
             BetterEnchantCommands.LOGGER.error("Unhandled /unenchant error: {}", exception.getMessage(), exception);
             return 0;
         }
+    }
+
+    private static int levelOf(final ItemEnchantments enchantments, final Holder<Enchantment> targetEnchantment) {
+        final int directLevel = enchantments.getLevel(targetEnchantment);
+        if (directLevel > 0) {
+            return directLevel;
+        }
+
+        for (Holder<Enchantment> holder : enchantments.keySet()) {
+            if (isSameEnchantment(holder, targetEnchantment)) {
+                return enchantments.getLevel(holder);
+            }
+        }
+
+        return 0;
+    }
+
+    private static boolean isSameEnchantment(
+        final Holder<Enchantment> first,
+        final Holder<Enchantment> second
+    ) {
+        if (first.equals(second)) {
+            return true;
+        }
+
+        if (first.unwrapKey().isPresent() && first.unwrapKey().equals(second.unwrapKey())) {
+            return true;
+        }
+
+        return first.value().equals(second.value());
     }
 
     private static String formatFailedTargets(final List<String> failedTargets) {

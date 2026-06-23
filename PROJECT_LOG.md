@@ -1,3 +1,36 @@
+## [2026-06-23] - [Broaden compatibility to the Minecraft 26.x line]
+### What Was Implemented
+- Widened `fabric.mod.json` from Minecraft `~26.2` to `>=26 <27`, which lets Fabric Loader accept any Minecraft release in the 26 major line.
+- Lowered the declared Fabric Loader floor to `>=0.19.0`, matching the minimum loader that passed the current 26.x runtime matrix.
+- Relaxed the `fabric-api` metadata dependency to `*` so servers can use the Fabric API build that matches their installed Minecraft 26.x version instead of being blocked by a `+26.2` build suffix.
+- Updated README requirements and compatibility wording to say `26.x`, list the tested 26.x releases, and tell users to install the Fabric API build matching their Minecraft version.
+
+### Verification
+- Build matrix passed for Minecraft `26.1`, `26.1.1`, `26.1.2`, and `26.2` using matching Fabric API artifacts.
+- In-game stress matrix passed on Minecraft `26.1`, `26.1.1`, `26.1.2`, and `26.2`; each run completed `1540` checks with `0` failures.
+
+### Assumptions Made
+- "Any 26.x.x" means the current and future Minecraft 26 major line accepted by Fabric's semver-translated predicate `>=26 <27`.
+- Future 26.x releases can still require follow-up validation if Mojang or Fabric breaks binary command/component APIs, but all current 26.x releases pass.
+
+## [2026-06-23] - [Update to Minecraft 26.2 / Java 25]
+### What Was Implemented
+- Retargeted the mod to Minecraft `26.2`, Java `25`, Fabric Loader `0.19.3`, Fabric API `0.153.0+26.2`, Fabric Loom `1.17-SNAPSHOT`, and Gradle `9.6.0`.
+- Switched the build to the canonical `net.fabricmc.fabric-loom` plugin id and the current no-Yarn-mappings Fabric 26.2 dependency shape.
+- Updated command API calls for 26.2, including `ItemInput#createItemStack(count)`, Java 25 compilation, Fabric dependency metadata, and direct 26.2 permission checks.
+- Preserved the mod's command surface while keeping the root command replacements active for `/enchant`, `/give`, `/unenchant`, `/enchantinfo`, `/enchantlist`, `/enchantpreset`, `/repair`, and `/enchants`.
+- Simplified `MinecraftCompatibility` by replacing broad reflective method-shape lookup with direct 26.2 component, registry, and permission APIs. This also fixed a destructive component-read bug where the old heuristic could match `ItemStack#set(...)` instead of a read method.
+- Updated main-hand mutation paths to write back selected-slot changes for enchant, preset, unenchant, and undo operations, and made enchantment-holder matching robust across equivalent registry holders.
+- Extended the in-game verifier for the 26.2 command tree, high-level enchantment checks, invalid input checks, end-to-end `/unenchant` coverage, and undo restoration.
+
+### Verification
+- `.\gradlew.bat clean build --stacktrace` with Java `25`: passed.
+- `.\gradlew.bat runServer --args="nogui"` with `-Dbetterenchantcommands.stressTest=true`: passed, `1540` checks, `0` failures.
+
+### Assumptions Made
+- Minecraft `26.2` is the current target release and requires Java `25`.
+- The updated jar is intentionally scoped to Fabric's current 26.2/no-Yarn-mappings workflow rather than preserving cross-version 1.21.x compatibility.
+
 ## [2026-04-14] - [Performance / reliability pass + large QoL feature set]
 ### What Was Implemented
 - Hot-path perf fixes (commit `df13235`):

@@ -249,6 +249,7 @@ public final class EnchantPresetCommand {
                     mutable.set(entry.holder, entry.level);
                 }
                 stack.set(DataComponents.ENCHANTMENTS, mutable.toImmutable());
+                target.getInventory().setSelectedItem(stack);
                 successes++;
             }
 

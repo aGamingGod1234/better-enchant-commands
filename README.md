@@ -1,6 +1,6 @@
 # Better Enchant Commands
 
-Better Enchant Commands is a server-side Fabric mod for Minecraft (Java 21, Fabric 1.21.x) that replaces Minecraft's admin enchanting commands with a more powerful, safer, and auditable set. It is designed for server operators, datapack authors, and map-makers who need to hand out precisely-configured enchanted gear at scale without wrestling with vanilla's terse component syntax.
+Better Enchant Commands is a server-side Fabric mod for Minecraft 26.x (Java 25) that replaces Minecraft's admin enchanting commands with a more powerful, safer, and auditable set. It is designed for server operators, datapack authors, and map-makers who need to hand out precisely-configured enchanted gear at scale without wrestling with vanilla's terse component syntax.
 
 ## What the mod does
 
@@ -15,9 +15,9 @@ Better Enchant Commands is a server-side Fabric mod for Minecraft (Java 21, Fabr
 ## Design summary
 
 - **Fail-safe validation.** Enchantment strings are parsed once into fully-validated `(Identifier, level)` pairs before any item is touched; parse failures leave items unmodified and return a structured command error. Levels are range-checked both when parsed from command input and when loaded from disk presets.
-- **Undo is bounded.** The per-operator undo deque is capped at the configured history size (default 8) to avoid an unbounded memory footprint on long-running sessions.
+- **Undo is bounded.** The per-operator undo deque is capped at the configured history size (default 20) to avoid an unbounded memory footprint on long-running sessions.
 - **Confirmation gate for bulk operations.** Commands whose target count exceeds `confirmation_threshold` stash a short-lived token and require `/enchants confirm <token>` to proceed, so a typo that would enchant an entire server does not fire-and-forget. Replaced pending tokens are now surfaced back to the operator instead of being silently dropped.
-- **Reflective compatibility layer.** `MinecraftCompatibility` resolves permission checks, registry lookups, and component read helpers through method-shape heuristics cached per class, so the same jar can run across minor Minecraft revisions without a hard dependency on obfuscation-remapped method names.
+- **Focused compatibility layer.** `MinecraftCompatibility` centralizes the Minecraft 26.x permission, registry, and item-component APIs used by the command implementations.
 - **Log-injection hardened.** Any string originating from player input (operator names, preset names, target names, label text) is stripped of ASCII control characters before being fed to SLF4J `{}` placeholders, so a crafted name can't forge audit lines.
 
 ## Command Reference
@@ -182,7 +182,7 @@ Set `audit_log_enabled` to `true` in the config file to emit structured audit li
 }
 ```
 
-The file is written automatically the first time the server starts. **Manual edits to the config file are only picked up at server startup** — the mod does not hot-reload the file. Use the in-game commands (`/enchants allow_all_enchantments`, `/enchantpreset save|delete`) to change settings live; those writes are atomic and flushed to disk immediately.
+The file is written automatically the first time the server starts. **Manual edits to the config file are only picked up at server startup** - the mod does not hot-reload the file. Use the in-game commands (`/enchants allow_all_enchantments`, `/enchantpreset save|delete`) to change settings live; those writes are atomic and flushed to disk immediately.
 
 ## Permissions
 
@@ -235,10 +235,12 @@ This mod also works in singleplayer because the integrated world runs a local se
 
 ## Requirements
 
-- Minecraft `1.21.11`
-- Fabric Loader `0.18.4` or newer
-- Fabric API
-- Java `21`
+- Minecraft `26.x` (`>=26 <27`)
+- Fabric Loader `0.19.0` or newer
+- Fabric API matching your installed Minecraft `26.x` version
+- Java `25`
+
+Tested 26.x releases: `26.1`, `26.1.1`, `26.1.2`, and `26.2`.
 
 ## Why Use This Mod
 

@@ -152,7 +152,7 @@ public final class GiveCommand {
         if (!BetterEnchantConfig.allowAllEnchantments() && !resolvedEnchantments.isEmpty()) {
             final ItemStack sample;
             try {
-                sample = itemInput.createItemStack(1, false);
+                sample = itemInput.createItemStack(1);
             } catch (CommandSyntaxException exception) {
                 source.sendFailure(Messages.error("error.syntax", "%s", exception.getMessage()));
                 return 0;
@@ -173,8 +173,9 @@ public final class GiveCommand {
 
         for (ServerPlayer target : targets) {
             try {
-                final ItemStack stack = itemInput.createItemStack(count, false);
+                final ItemStack stack = itemInput.createItemStack(count);
                 applyEnchantmentsToStack(stack, resolvedEnchantments);
+                final String itemName = stack.getHoverName().getString();
                 final boolean added = target.getInventory().add(stack);
 
                 if (!added && !stack.isEmpty()) {
@@ -182,7 +183,6 @@ public final class GiveCommand {
                 }
 
                 successfulTargets++;
-                final String itemName = stack.getHoverName().getString();
                 final String targetName = target.getScoreboardName();
                 final int enchCount = resolvedEnchantments.size();
                 source.sendSuccess(() -> enchCount == 0
@@ -219,7 +219,7 @@ public final class GiveCommand {
 
     private static String itemName(final ItemInput itemInput) {
         try {
-            return itemInput.createItemStack(1, false).getItem().toString();
+            return itemInput.createItemStack(1).getItem().toString();
         } catch (CommandSyntaxException | RuntimeException exception) {
             return "unknown";
         }
@@ -376,7 +376,7 @@ public final class GiveCommand {
     private static ItemStack tryGetContextItem(final CommandContext<CommandSourceStack> context) {
         try {
             final ItemInput itemInput = ItemArgument.getItem(context, ITEM_ARGUMENT);
-            return itemInput.createItemStack(1, false);
+            return itemInput.createItemStack(1);
         } catch (CommandSyntaxException | RuntimeException exception) {
             // RuntimeException covers IllegalArgumentException and other unchecked
             // parsing failures while the suggestion provider is being populated.

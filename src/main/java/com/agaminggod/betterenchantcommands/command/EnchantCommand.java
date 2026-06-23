@@ -85,6 +85,12 @@ public final class EnchantCommand {
     private static int execute(final CommandContext<CommandSourceStack> context, final int level) {
         final CommandSourceStack source = context.getSource();
 
+        if (level < EnchantmentParser.MIN_LEVEL || level > EnchantmentParser.MAX_LEVEL) {
+            source.sendFailure(Messages.error("error.invalid_level",
+                "Level must be between %d and %d.", EnchantmentParser.MIN_LEVEL, EnchantmentParser.MAX_LEVEL));
+            return 0;
+        }
+
         try {
             final Collection<ServerPlayer> targets = EntityArgument.getPlayers(context, TARGETS_ARGUMENT);
             final Holder.Reference<Enchantment> enchantmentHolder = ResourceArgument.getEnchantment(context, ENCHANTMENT_ARGUMENT);
@@ -154,6 +160,7 @@ public final class EnchantCommand {
                 final ItemEnchantments.Mutable mutable = new ItemEnchantments.Mutable(current);
                 mutable.set(enchantmentHolder, level);
                 stack.set(DataComponents.ENCHANTMENTS, mutable.toImmutable());
+                target.getInventory().setSelectedItem(stack);
 
                 successfulTargets++;
                 final String targetName = target.getScoreboardName();
