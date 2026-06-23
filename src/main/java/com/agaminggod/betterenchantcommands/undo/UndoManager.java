@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -114,14 +115,21 @@ public final class UndoManager {
         }
 
         public int restore(final net.minecraft.server.MinecraftServer server) {
+            return restore(server, null);
+        }
+
+        public int restore(final net.minecraft.server.MinecraftServer server, final ServerPlayer sourcePlayer) {
             int restored = 0;
             for (Entry entry : entries) {
-                final ServerPlayer player = server.getPlayerList().getPlayer(entry.playerId);
+                ServerPlayer player = server.getPlayerList().getPlayer(entry.playerId);
+                if (player == null && sourcePlayer != null && sourcePlayer.getUUID().equals(entry.playerId)) {
+                    player = sourcePlayer;
+                }
                 if (player == null) {
                     continue;
                 }
 
-                player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, entry.originalStack.copy());
+                player.setItemInHand(InteractionHand.MAIN_HAND, entry.originalStack.copy());
                 restored++;
             }
             return restored;

@@ -24,12 +24,13 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 
 public final class UnenchantCommand {
-    private static final String COMMAND_NAME = "unenchant";
+    public static final String COMMAND_NAME = "unenchant";
     private static final String TARGETS_ARGUMENT = "targets";
     private static final String ENCHANTMENT_ARGUMENT = "enchantment";
     private static final int REQUIRED_PERMISSION_LEVEL = 2;
@@ -61,7 +62,19 @@ public final class UnenchantCommand {
     ) {
         final CommandSourceStack source = context.getSource();
         try {
-            final Collection<ServerPlayer> targets = EntityArgument.getPlayers(context, TARGETS_ARGUMENT);
+            return applyUnenchantment(source, EntityArgument.getPlayers(context, TARGETS_ARGUMENT), specificEnchantment);
+        } catch (CommandSyntaxException exception) {
+            source.sendFailure(Component.literal(exception.getMessage()).withStyle(ChatFormatting.RED));
+            return 0;
+        }
+    }
+
+    private static int applyUnenchantment(
+        final CommandSourceStack source,
+        final Collection<ServerPlayer> targets,
+        final Holder<Enchantment> specificEnchantment
+    ) {
+        try {
             final String targetId = specificEnchantment == null
                 ? null
                 : EnchantmentCompat.shortId(specificEnchantment);
@@ -91,13 +104,14 @@ public final class UnenchantCommand {
 
                 if (specificEnchantment == null) {
                     stack.set(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY);
+                    target.setItemInHand(InteractionHand.MAIN_HAND, stack);
                     final String targetName = target.getScoreboardName();
                     final String itemName = stack.getHoverName().getString();
                     source.sendSuccess(() -> Messages.success("success.unenchant_all",
                         "Removed all enchantments from %s's %s", targetName, itemName), true);
                     successfulTargets++;
                 } else {
-                    if (current.getLevel(specificEnchantment) <= 0) {
+                    if (EnchantmentCompat.levelOf(current, specificEnchantment) <= 0) {
                         failedTargets.add(target.getScoreboardName() + " (item doesn't have " + targetId + ")");
                         continue;
                     }
@@ -106,12 +120,13 @@ public final class UnenchantCommand {
                     // relying on Mutable.set(holder, 0) semantics across versions.
                     final ItemEnchantments.Mutable mutable = new ItemEnchantments.Mutable(ItemEnchantments.EMPTY);
                     for (Holder<Enchantment> holder : current.keySet()) {
-                        if (holder.equals(specificEnchantment)) {
+                        if (EnchantmentCompat.isSameEnchantment(holder, specificEnchantment)) {
                             continue;
                         }
                         mutable.set(holder, current.getLevel(holder));
                     }
                     stack.set(DataComponents.ENCHANTMENTS, mutable.toImmutable());
+                    target.setItemInHand(InteractionHand.MAIN_HAND, stack);
                     final String targetName = target.getScoreboardName();
                     source.sendSuccess(() -> Messages.success("success.unenchant_one",
                         "Removed %s from %s's held item", targetId, targetName), true);
@@ -129,9 +144,6 @@ public final class UnenchantCommand {
             }
 
             return successfulTargets;
-        } catch (CommandSyntaxException exception) {
-            source.sendFailure(Component.literal(exception.getMessage()).withStyle(ChatFormatting.RED));
-            return 0;
         } catch (RuntimeException exception) {
             source.sendFailure(Messages.error("error.internal",
                 "An internal error occurred while running /unenchant. Check server logs."));

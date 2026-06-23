@@ -2,6 +2,7 @@ package com.agaminggod.betterenchantcommands.verification;
 
 import com.agaminggod.betterenchantcommands.BetterEnchantCommands;
 import com.agaminggod.betterenchantcommands.compat.MinecraftCompatibility;
+import com.agaminggod.betterenchantcommands.util.EnchantmentCompat;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import java.util.UUID;
@@ -14,7 +15,6 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -51,7 +51,7 @@ public final class InGameStressVerifier {
                 .withSuppressedOutput();
 
             // Ensure player has an item for enchant tests.
-            fakePlayer.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_SWORD));
+            fakePlayer.getInventory().setSelectedItem(new ItemStack(Items.DIAMOND_SWORD));
 
             assertSuccess(counter, source, server, "give @s minecraft:stone 64", "plain /give");
             assertSuccess(counter, source, server, "give @s minecraft:diamond_sword enchantments:sharpness:10,unbreaking:3",
@@ -81,6 +81,10 @@ public final class InGameStressVerifier {
             assertSuccess(counter, source, server, "enchantinfo minecraft:sharpness",
                 "/enchantinfo shows info for sharpness");
             assertSuccess(counter, source, server, "enchants status", "/enchants status prints config");
+            assertSuccess(counter, source, server, "enchant @s minecraft:sharpness",
+                "/enchant reapplies before /unenchant");
+            assertSharpnessLevel(counter, server, fakePlayer.getMainHandItem(), ENCHANT_MIN_LEVEL,
+                "reapplied /enchant applies level 1");
             assertSuccess(counter, source, server, "unenchant @s minecraft:sharpness",
                 "/unenchant removes a specific enchantment");
             assertSuccess(counter, source, server, "enchants undo", "/enchants undo restores previous state");
@@ -162,10 +166,19 @@ public final class InGameStressVerifier {
                 DataComponents.ENCHANTMENTS,
                 ItemEnchantments.EMPTY
             );
-            final int level = enchantments.getLevel(holder);
+            final int level = EnchantmentCompat.levelOf(enchantments, holder);
 
             if (level != expectedLevel) {
-                BetterEnchantCommands.LOGGER.error("{}{}: expected level {}, got {}", FAIL_PREFIX, label, expectedLevel, level);
+                BetterEnchantCommands.LOGGER.error(
+                    "{}{}: expected level {}, got {} on {} with {} enchantment key(s): {}",
+                    FAIL_PREFIX,
+                    label,
+                    expectedLevel,
+                    level,
+                    stack,
+                    enchantments.size(),
+                    enchantments.keySet()
+                );
                 counter.fail();
                 return;
             }

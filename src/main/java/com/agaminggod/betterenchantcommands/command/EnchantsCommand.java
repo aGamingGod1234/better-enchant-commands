@@ -13,6 +13,7 @@ import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Umbrella command that hosts configuration and moderation subcommands:
@@ -24,7 +25,7 @@ import net.minecraft.commands.Commands;
  * </ul>
  */
 public final class EnchantsCommand {
-    private static final String COMMAND_NAME = "enchants";
+    public static final String COMMAND_NAME = "enchants";
     private static final int REQUIRED_PERMISSION_LEVEL = 2;
     private static final int ADMIN_PERMISSION_LEVEL = 4;
 
@@ -106,7 +107,8 @@ public final class EnchantsCommand {
             return 0;
         }
 
-        final int restored = snapshot.restore(source.getServer());
+        final ServerPlayer sourcePlayer = source.getEntity() instanceof ServerPlayer player ? player : null;
+        final int restored = snapshot.restore(source.getServer(), sourcePlayer);
         final String label = snapshot.label();
         source.sendSuccess(() -> Messages.success("undo.success",
             "Undid \"%s\" — restored %d item(s).", label, restored), true);

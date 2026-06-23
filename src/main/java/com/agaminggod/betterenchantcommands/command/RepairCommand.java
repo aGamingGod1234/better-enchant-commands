@@ -28,7 +28,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
 
 public final class RepairCommand {
-    private static final String COMMAND_NAME = "repair";
+    public static final String COMMAND_NAME = "repair";
     private static final String TARGETS_ARGUMENT = "targets";
     private static final String ITEM_ARGUMENT = "item";
     private static final String COUNT_ARGUMENT = "count";
@@ -111,7 +111,7 @@ public final class RepairCommand {
             }
 
             final Map<Holder<Enchantment>, Integer> enchantments = new LinkedHashMap<>();
-            final ItemStack sample = itemInput.createItemStack(1, false);
+            final ItemStack sample = itemInput.createItemStack(1);
             if (EnchantmentCompat.isCompatible(sample, mending) || BetterEnchantConfig.allowAllEnchantments()) {
                 enchantments.put(mending, 1);
             } else {
@@ -127,14 +127,14 @@ public final class RepairCommand {
 
             int successfulTargets = 0;
             for (ServerPlayer target : targets) {
-                final ItemStack stack = itemInput.createItemStack(count, false);
+                final ItemStack stack = itemInput.createItemStack(count);
                 GiveCommand.applyEnchantmentsToStack(stack, enchantments);
+                final String itemName = stack.getHoverName().getString();
                 final boolean added = target.getInventory().add(stack);
                 if (!added && !stack.isEmpty()) {
                     target.drop(stack, false);
                 }
                 successfulTargets++;
-                final String itemName = stack.getHoverName().getString();
                 final String targetName = target.getScoreboardName();
                 source.sendSuccess(() -> Messages.success("success.repair",
                     "Gave %d [%s] to %s (mending applied)",
