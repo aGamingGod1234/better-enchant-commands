@@ -29,13 +29,14 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 
 public final class EnchantCommand {
     private static final int DEFAULT_LEVEL = 1;
-    private static final String COMMAND_NAME = "enchant";
+    public static final String COMMAND_NAME = "enchant";
     private static final String TARGETS_ARGUMENT = "targets";
     private static final String ENCHANTMENT_ARGUMENT = "enchantment";
     private static final String LEVEL_ARGUMENT = "level";
@@ -160,7 +161,7 @@ public final class EnchantCommand {
                 final ItemEnchantments.Mutable mutable = new ItemEnchantments.Mutable(current);
                 mutable.set(enchantmentHolder, level);
                 stack.set(DataComponents.ENCHANTMENTS, mutable.toImmutable());
-                target.getInventory().setSelectedItem(stack);
+                target.setItemInHand(InteractionHand.MAIN_HAND, stack);
 
                 successfulTargets++;
                 final String targetName = target.getScoreboardName();

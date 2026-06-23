@@ -2,6 +2,7 @@ package com.agaminggod.betterenchantcommands.verification;
 
 import com.agaminggod.betterenchantcommands.BetterEnchantCommands;
 import com.agaminggod.betterenchantcommands.compat.MinecraftCompatibility;
+import com.agaminggod.betterenchantcommands.util.EnchantmentCompat;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import java.util.UUID;
@@ -165,7 +166,7 @@ public final class InGameStressVerifier {
                 DataComponents.ENCHANTMENTS,
                 ItemEnchantments.EMPTY
             );
-            final int level = levelOf(enchantments, holder);
+            final int level = EnchantmentCompat.levelOf(enchantments, holder);
 
             if (level != expectedLevel) {
                 BetterEnchantCommands.LOGGER.error(
@@ -243,36 +244,6 @@ public final class InGameStressVerifier {
         }
 
         return command;
-    }
-
-    private static int levelOf(final ItemEnchantments enchantments, final Holder<Enchantment> targetEnchantment) {
-        final int directLevel = enchantments.getLevel(targetEnchantment);
-        if (directLevel > 0) {
-            return directLevel;
-        }
-
-        for (Holder<Enchantment> holder : enchantments.keySet()) {
-            if (isSameEnchantment(holder, targetEnchantment)) {
-                return enchantments.getLevel(holder);
-            }
-        }
-
-        return 0;
-    }
-
-    private static boolean isSameEnchantment(
-        final Holder<Enchantment> first,
-        final Holder<Enchantment> second
-    ) {
-        if (first.equals(second)) {
-            return true;
-        }
-
-        if (first.unwrapKey().isPresent() && first.unwrapKey().equals(second.unwrapKey())) {
-            return true;
-        }
-
-        return first.value().equals(second.value());
     }
 
     private static final class VerificationCounter {

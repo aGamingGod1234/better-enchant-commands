@@ -27,13 +27,12 @@ public final class MinecraftCompatibility {
         return source.withMaximumPermission(LevelBasedPermissionSet.forLevel(PermissionLevel.byId(requiredLevel)));
     }
 
-    @SuppressWarnings("unchecked")
-    public static <T> T getComponentOrDefault(final ItemStack stack, final Object componentType, final T fallbackValue) {
-        if (!(componentType instanceof DataComponentType<?> dataComponentType)) {
-            throw new IllegalArgumentException("Unsupported component type " + componentType);
-        }
-
-        return stack.getOrDefault((DataComponentType<T>) dataComponentType, fallbackValue);
+    public static <T> T getComponentOrDefault(
+        final ItemStack stack,
+        final DataComponentType<T> componentType,
+        final T fallbackValue
+    ) {
+        return stack.getOrDefault(componentType, fallbackValue);
     }
 
     public static <T> Holder<T> findRegistryHolderById(final Registry<T> registry, final Identifier id) {

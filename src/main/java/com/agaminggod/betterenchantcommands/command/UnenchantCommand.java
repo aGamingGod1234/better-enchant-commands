@@ -24,12 +24,13 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 
 public final class UnenchantCommand {
-    private static final String COMMAND_NAME = "unenchant";
+    public static final String COMMAND_NAME = "unenchant";
     private static final String TARGETS_ARGUMENT = "targets";
     private static final String ENCHANTMENT_ARGUMENT = "enchantment";
     private static final int REQUIRED_PERMISSION_LEVEL = 2;
@@ -103,14 +104,14 @@ public final class UnenchantCommand {
 
                 if (specificEnchantment == null) {
                     stack.set(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY);
-                    target.getInventory().setSelectedItem(stack);
+                    target.setItemInHand(InteractionHand.MAIN_HAND, stack);
                     final String targetName = target.getScoreboardName();
                     final String itemName = stack.getHoverName().getString();
                     source.sendSuccess(() -> Messages.success("success.unenchant_all",
                         "Removed all enchantments from %s's %s", targetName, itemName), true);
                     successfulTargets++;
                 } else {
-                    if (levelOf(current, specificEnchantment) <= 0) {
+                    if (EnchantmentCompat.levelOf(current, specificEnchantment) <= 0) {
                         failedTargets.add(target.getScoreboardName() + " (item doesn't have " + targetId + ")");
                         continue;
                     }
@@ -119,13 +120,13 @@ public final class UnenchantCommand {
                     // relying on Mutable.set(holder, 0) semantics across versions.
                     final ItemEnchantments.Mutable mutable = new ItemEnchantments.Mutable(ItemEnchantments.EMPTY);
                     for (Holder<Enchantment> holder : current.keySet()) {
-                        if (isSameEnchantment(holder, specificEnchantment)) {
+                        if (EnchantmentCompat.isSameEnchantment(holder, specificEnchantment)) {
                             continue;
                         }
                         mutable.set(holder, current.getLevel(holder));
                     }
                     stack.set(DataComponents.ENCHANTMENTS, mutable.toImmutable());
-                    target.getInventory().setSelectedItem(stack);
+                    target.setItemInHand(InteractionHand.MAIN_HAND, stack);
                     final String targetName = target.getScoreboardName();
                     source.sendSuccess(() -> Messages.success("success.unenchant_one",
                         "Removed %s from %s's held item", targetId, targetName), true);
@@ -149,36 +150,6 @@ public final class UnenchantCommand {
             BetterEnchantCommands.LOGGER.error("Unhandled /unenchant error: {}", exception.getMessage(), exception);
             return 0;
         }
-    }
-
-    private static int levelOf(final ItemEnchantments enchantments, final Holder<Enchantment> targetEnchantment) {
-        final int directLevel = enchantments.getLevel(targetEnchantment);
-        if (directLevel > 0) {
-            return directLevel;
-        }
-
-        for (Holder<Enchantment> holder : enchantments.keySet()) {
-            if (isSameEnchantment(holder, targetEnchantment)) {
-                return enchantments.getLevel(holder);
-            }
-        }
-
-        return 0;
-    }
-
-    private static boolean isSameEnchantment(
-        final Holder<Enchantment> first,
-        final Holder<Enchantment> second
-    ) {
-        if (first.equals(second)) {
-            return true;
-        }
-
-        if (first.unwrapKey().isPresent() && first.unwrapKey().equals(second.unwrapKey())) {
-            return true;
-        }
-
-        return first.value().equals(second.value());
     }
 
     private static String formatFailedTargets(final List<String> failedTargets) {

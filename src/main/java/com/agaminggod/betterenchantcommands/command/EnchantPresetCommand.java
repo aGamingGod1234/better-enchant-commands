@@ -28,12 +28,13 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 
 public final class EnchantPresetCommand {
-    private static final String COMMAND_NAME = "enchantpreset";
+    public static final String COMMAND_NAME = "enchantpreset";
     private static final String NAME_ARGUMENT = "name";
     private static final String TARGETS_ARGUMENT = "targets";
     private static final int REQUIRED_PERMISSION_LEVEL = 2;
@@ -249,7 +250,7 @@ public final class EnchantPresetCommand {
                     mutable.set(entry.holder, entry.level);
                 }
                 stack.set(DataComponents.ENCHANTMENTS, mutable.toImmutable());
-                target.getInventory().setSelectedItem(stack);
+                target.setItemInHand(InteractionHand.MAIN_HAND, stack);
                 successes++;
             }
 

@@ -15,7 +15,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.enchantment.Enchantment;
 
 public final class EnchantInfoCommand {
-    private static final String COMMAND_NAME = "enchantinfo";
+    public static final String COMMAND_NAME = "enchantinfo";
     private static final String ENCHANTMENT_ARGUMENT = "enchantment";
     private static final int REQUIRED_PERMISSION_LEVEL = 2;
 

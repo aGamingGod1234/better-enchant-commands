@@ -15,6 +15,7 @@ import com.agaminggod.betterenchantcommands.verification.InGameStressVerifier;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.tree.CommandNode;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import net.fabricmc.api.ModInitializer;
@@ -30,15 +31,16 @@ public final class BetterEnchantCommands implements ModInitializer {
     public static final String MOD_ID = "better-enchant-commands";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     private static final String STRESS_TEST_PROPERTY = "betterenchantcommands.stressTest";
+    private static final List<String> BRIGADIER_ROOT_CHILD_FIELDS = List.of("children", "literals", "arguments");
     private static final List<String> MOD_COMMANDS = List.of(
-        "enchant",
-        "give",
-        "unenchant",
-        "enchantinfo",
-        "enchantlist",
-        "enchantpreset",
-        "repair",
-        "enchants"
+        EnchantCommand.COMMAND_NAME,
+        GiveCommand.COMMAND_NAME,
+        UnenchantCommand.COMMAND_NAME,
+        EnchantInfoCommand.COMMAND_NAME,
+        EnchantListCommand.COMMAND_NAME,
+        EnchantPresetCommand.COMMAND_NAME,
+        RepairCommand.COMMAND_NAME,
+        EnchantsCommand.COMMAND_NAME
     );
     private static CommandBuildContext latestBuildContext;
 
@@ -56,7 +58,10 @@ public final class BetterEnchantCommands implements ModInitializer {
                 registerReplacementCommands(server.getCommands().getDispatcher(), latestBuildContext);
             }
         });
-        ServerLifecycleEvents.SERVER_STOPPING.register(server -> UndoManager.clear());
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            UndoManager.clear();
+            latestBuildContext = null;
+        });
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
             UndoManager.forgetOwner(handler.player.getUUID()));
 
@@ -87,18 +92,43 @@ public final class BetterEnchantCommands implements ModInitializer {
     }
 
     private static void replaceRootCommand(final CommandDispatcher<CommandSourceStack> dispatcher, final String commandName) {
-        try {
-            final CommandNode<CommandSourceStack> root = dispatcher.getRoot();
-            for (String fieldName : List.of("children", "literals", "arguments")) {
+        final CommandNode<CommandSourceStack> root = dispatcher.getRoot();
+        if (root.getChild(commandName) == null) {
+            return;
+        }
+
+        final List<String> failedFields = new ArrayList<>();
+
+        for (String fieldName : BRIGADIER_ROOT_CHILD_FIELDS) {
+            try {
                 final Field field = CommandNode.class.getDeclaredField(fieldName);
                 field.setAccessible(true);
                 final Object value = field.get(root);
                 if (value instanceof Map<?, ?> commandMap) {
                     commandMap.remove(commandName);
+                    if (commandMap.containsKey(commandName)) {
+                        failedFields.add(fieldName + " still contains the command after removal");
+                    }
+                } else {
+                    failedFields.add(fieldName + " was " + describeType(value) + " instead of Map");
                 }
+            } catch (ReflectiveOperationException | RuntimeException exception) {
+                failedFields.add(fieldName + " failed with " + exception.getClass().getSimpleName());
             }
-        } catch (ReflectiveOperationException exception) {
-            LOGGER.warn("Unable to replace vanilla /{} command cleanly; command tree will be merged", commandName, exception);
         }
+
+        if (!failedFields.isEmpty()) {
+            LOGGER.warn("Unable to inspect/remove /{} from Brigadier root field(s): {}; fallback registration may merge command nodes",
+                commandName, String.join(", ", failedFields));
+        }
+
+        if (root.getChild(commandName) != null) {
+            LOGGER.warn("Existing /{} command still present after replacement cleanup; registering the mod command will merge Brigadier nodes",
+                commandName);
+        }
+    }
+
+    private static String describeType(final Object value) {
+        return value == null ? "null" : value.getClass().getName();
     }
 }

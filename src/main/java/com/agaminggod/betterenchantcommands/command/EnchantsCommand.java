@@ -25,7 +25,7 @@ import net.minecraft.server.level.ServerPlayer;
  * </ul>
  */
 public final class EnchantsCommand {
-    private static final String COMMAND_NAME = "enchants";
+    public static final String COMMAND_NAME = "enchants";
     private static final int REQUIRED_PERMISSION_LEVEL = 2;
     private static final int ADMIN_PERMISSION_LEVEL = 4;
 

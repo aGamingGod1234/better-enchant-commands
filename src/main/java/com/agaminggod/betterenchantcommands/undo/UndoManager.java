@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -128,7 +129,7 @@ public final class UndoManager {
                     continue;
                 }
 
-                player.getInventory().setSelectedItem(entry.originalStack.copy());
+                player.setItemInHand(InteractionHand.MAIN_HAND, entry.originalStack.copy());
                 restored++;
             }
             return restored;

@@ -18,7 +18,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.enchantment.Enchantment;
 
 public final class EnchantListCommand {
-    private static final String COMMAND_NAME = "enchantlist";
+    public static final String COMMAND_NAME = "enchantlist";
     private static final String FILTER_ARGUMENT = "filter";
     private static final int REQUIRED_PERMISSION_LEVEL = 2;
     private static final int MAX_ENTRIES_PER_PAGE = 40;

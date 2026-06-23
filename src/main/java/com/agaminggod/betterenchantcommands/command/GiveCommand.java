@@ -44,7 +44,7 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 
 public final class GiveCommand {
-    private static final String COMMAND_NAME = "give";
+    public static final String COMMAND_NAME = "give";
     private static final String TARGETS_ARGUMENT = "targets";
     private static final String ITEM_ARGUMENT = "item";
     private static final String COUNT_ARGUMENT = "count";
